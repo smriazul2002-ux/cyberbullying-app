@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="Cyberbullying Pro", layout="centered")
+
 import pickle
 import re
 import string
@@ -8,16 +10,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 
-st.set_page_config(page_title="Cyberbullying Pro", layout="centered")
-
 # 🎨 STYLE
 st.markdown("""
 <style>
+.main { background-color: #0e1117; }
+h1 { text-align: center; }
+.block-container { padding-top: 2rem; }
+.stTextArea textarea { border-radius: 10px; }
 .stButton>button { width:100%; border-radius:10px; height:3em; }
 </style>
 """, unsafe_allow_html=True)
 
-# 🔥 FIREBASE CONFIG (FIXED)
+# 🔥 FIREBASE CONFIG
 firebase_config = {
     "apiKey": "AIzaSyC76HgUI821jKRc8hjpPt6RxwxyK88nOrE",
     "authDomain": "cyberbullyingapp-d427c.firebaseapp.com",
@@ -36,7 +40,7 @@ db = firebase.database()
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# 🔐 LOGIN / REGISTER
+# 🔐 LOGIN
 def login():
     st.title("🔐 Login System")
     email = st.text_input("Email")
@@ -72,7 +76,7 @@ if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# 📦 LOAD MODEL
+# 📦 MODEL
 BASE_DIR = os.path.dirname(__file__)
 model = pickle.load(open(os.path.join(BASE_DIR, "cyberbullying_model.pkl"), "rb"))
 vectorizer = pickle.load(open(os.path.join(BASE_DIR, "tfidf_vectorizer.pkl"), "rb"))
@@ -88,21 +92,29 @@ def predict(text):
     vec = vectorizer.transform([clean_text(text)])
     return model.predict(vec)[0], model.predict_proba(vec)[0][1]
 
-# 🎯 MAIN UI
+# 🎯 UI
 st.title("🚫 Cyberbullying Detector PRO")
 
 text = st.text_area("Enter text")
 platform = st.selectbox("Platform", ["Facebook","YouTube","Twitter","Instagram"])
 
-# 🔍 CHECK
+# 🔍 ANALYZE
 if st.button("Analyze"):
     if text:
         result, prob = predict(text)
 
+        st.progress(int(prob*100))
+        st.write(f"Confidence: {round(prob*100,2)}%")
+
         if result == 1:
-            st.error(f"😡 Cyberbullying ({round(prob*100,2)}%)")
+            if prob > 0.8:
+                st.error(f"🚨 HIGH Cyberbullying ({prob*100:.2f}%)")
+            elif prob > 0.5:
+                st.warning(f"⚠️ Medium Risk ({prob*100:.2f}%)")
+            else:
+                st.info(f"Low Risk ({prob*100:.2f}%)")
         else:
-            st.success(f"😊 Safe ({round(prob*100,2)}%)")
+            st.success(f"😊 Safe ({prob*100:.2f}%)")
 
         db.child("posts").push({
             "text": text,
@@ -121,11 +133,20 @@ posts = db.child("posts").get()
 
 total = bully = safe = 0
 data_list = []
+user_toxic = {}
 
 if posts.each():
     for post in reversed(posts.each()):
         d = post.val()
         post_id = post.key()
+
+        user = d["user"]
+
+        # Toxic count
+        if user not in user_toxic:
+            user_toxic[user] = 0
+        if d["result"] == 1:
+            user_toxic[user] += 1
 
         total += 1
         if d["result"] == 1:
@@ -133,14 +154,14 @@ if posts.each():
         else:
             safe += 1
 
-        st.write("👤", d["user"])
+        st.write("👤", user)
         st.write("📝", d["text"])
         st.write("📱", d["platform"])
 
         if d["result"] == 1:
-            st.error("Cyberbullying")
+            st.error(f"😡 Cyberbullying ({round(d['confidence']*100,2)}%)")
         else:
-            st.success("Safe")
+            st.success(f"😊 Safe ({round(d['confidence']*100,2)}%)")
 
         r = d.get("reactions", {})
         like = r.get("like",0)
@@ -153,20 +174,23 @@ if posts.each():
         with col1:
             if st.button(f"👍 {like}", key="l"+post_id):
                 r["like"]=like+1
-
         with col2:
             if st.button(f"❤️ {love}", key="lo"+post_id):
                 r["love"]=love+1
-
         with col3:
             if st.button(f"😂 {haha}", key="h"+post_id):
                 r["haha"]=haha+1
-
         with col4:
             if st.button(f"😡 {angry}", key="a"+post_id):
                 r["angry"]=angry+1
 
         db.child("posts").child(post_id).update({"reactions":r})
+
+        # 🔥 SCORE
+        score = like + love + haha - angry
+        st.write("🔥 Score:", score)
+        if score < 0:
+            st.error("🚨 Negative Post")
 
         # 💬 COMMENT
         comment = st.text_input("Comment", key="c"+post_id)
@@ -174,7 +198,7 @@ if posts.each():
         if st.button("Post", key="b"+post_id):
             if comment:
                 db.child("posts").child(post_id).child("comments").push({
-                    "user": st.session_state.user_email,
+                    "user": user,
                     "text": comment
                 })
                 st.rerun()
@@ -185,7 +209,7 @@ if posts.each():
                 st.write(f"💬 {cm['user']}: {cm['text']}")
 
         # 🗑 DELETE
-        if d["user"] == st.session_state.user_email:
+        if user == st.session_state.user_email:
             if st.button("Delete", key="d"+post_id):
                 db.child("posts").child(post_id).remove()
                 st.rerun()
@@ -193,7 +217,7 @@ if posts.each():
         st.write("---")
 
         data_list.append({
-            "User": d["user"],
+            "User": user,
             "Text": d["text"],
             "Platform": d["platform"],
             "Result": "Cyberbullying" if d["result"]==1 else "Safe"
@@ -210,6 +234,12 @@ if total>0:
     ax.pie([bully,safe], labels=["Cyberbullying","Safe"], autopct="%1.1f%%")
     st.pyplot(fig)
 
+# 🚨 Toxic Users
+st.subheader("🚨 Toxic Users")
+for u,c in user_toxic.items():
+    if c >= 2:
+        st.error(f"{u} → {c} toxic posts")
+
 # 📥 DOWNLOAD
 if data_list:
     df = pd.DataFrame(data_list)
@@ -217,7 +247,6 @@ if data_list:
 
 # 👑 ADMIN
 ADMIN_EMAIL = "your@email.com"
-
 if st.session_state.user_email == ADMIN_EMAIL:
     st.subheader("👑 Admin Panel")
     if st.button("Delete ALL Posts"):
