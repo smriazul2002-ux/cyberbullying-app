@@ -1,1 +1,4 @@
 flutter/ephemeral
+ .venv/
+__pycache__/
+*.pyc
