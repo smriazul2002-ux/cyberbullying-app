@@ -1,6 +1,5 @@
 streamlit
+pyrebase4
 scikit-learn
 pandas
-numpy
 matplotlib
-pyrebase4
