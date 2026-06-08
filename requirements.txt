@@ -1,5 +1,6 @@
-streamlit
-pyrebase4
+fastapi
+uvicorn
 scikit-learn
 pandas
-matplotlib
+pyrebase4
+python-multipart
