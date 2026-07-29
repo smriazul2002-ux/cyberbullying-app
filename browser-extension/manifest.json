@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Cyberbullying Detector - Live Highlighter",
+  "version": "1.0.0",
+  "description": "Highlights potentially harmful comments directly on social media pages (Facebook, YouTube, Twitter/X) using your trained cyberbullying detection model.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["http://127.0.0.1:8000/*", "http://localhost:8000/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cyberbullying Detector"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.facebook.com/*",
+        "*://*.youtube.com/*",
+        "*://*.twitter.com/*",
+        "*://*.x.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

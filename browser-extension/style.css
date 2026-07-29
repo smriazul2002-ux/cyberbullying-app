@@ -1,0 +1,18 @@
+.cbd-flagged {
+  outline: 2px solid #f87171 !important;
+  background-color: rgba(248, 113, 113, 0.08) !important;
+  border-radius: 6px !important;
+  position: relative;
+}
+
+.cbd-badge {
+  display: inline-block;
+  background-color: #f87171;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-right: 6px;
+  font-family: Arial, sans-serif;
+}
