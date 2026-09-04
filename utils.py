@@ -13,7 +13,8 @@ import html
 # expand this using a published Bangla abusive-language dataset.
 BANGLA_TOXIC_WORDS = [
     "baje", "faltu", "boka", "pagol", "chagol", "gadha", "murkho",
-    "beyadob", "shoytan", "boka chele", "boka meye"
+    "beyadob", "shoytan", "boka chele", "boka meye", "বোকা", "গাধা",
+    "পাগল", "খারাপ", "অসভ্য", "বেয়াদব"
 ]
 
 

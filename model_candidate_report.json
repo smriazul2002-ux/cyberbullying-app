@@ -1,0 +1,141 @@
+{
+  "dataset_rows": 159686,
+  "label_counts": {
+    "0": 144324,
+    "1": 15362
+  },
+  "current": {
+    "metrics": {
+      "accuracy": 0.9586,
+      "precision": 0.9002,
+      "recall": 0.6403,
+      "f1": 0.7483,
+      "confusion_matrix": [
+        [
+          28648,
+          218
+        ],
+        [
+          1105,
+          1967
+        ]
+      ]
+    },
+    "context_tests": [
+      {
+        "text": "You did a great job on this project.",
+        "expected": 0,
+        "predicted": 0,
+        "bullying_probability": 0.0429,
+        "correct": true
+      },
+      {
+        "text": "I disagree with you, but I respect your opinion.",
+        "expected": 0,
+        "predicted": 0,
+        "bullying_probability": 0.017,
+        "correct": true
+      },
+      {
+        "text": "I hate this video, but I do not hate you.",
+        "expected": 0,
+        "predicted": 1,
+        "bullying_probability": 0.6795,
+        "correct": false
+      },
+      {
+        "text": "That was a dumb mistake; please be more careful next time.",
+        "expected": 0,
+        "predicted": 0,
+        "bullying_probability": 0.2809,
+        "correct": true
+      },
+      {
+        "text": "You are stupid and nobody likes you.",
+        "expected": 1,
+        "predicted": 1,
+        "bullying_probability": 0.9926,
+        "correct": true
+      },
+      {
+        "text": "Shut up, idiot. You are such a loser.",
+        "expected": 1,
+        "predicted": 1,
+        "bullying_probability": 0.9999,
+        "correct": true
+      }
+    ]
+  },
+  "candidate": {
+    "metrics": {
+      "accuracy": 0.9543,
+      "precision": 0.9224,
+      "recall": 0.5726,
+      "f1": 0.7066,
+      "confusion_matrix": [
+        [
+          28718,
+          148
+        ],
+        [
+          1313,
+          1759
+        ]
+      ]
+    },
+    "context_tests": [
+      {
+        "text": "You did a great job on this project.",
+        "expected": 0,
+        "predicted": 0,
+        "bullying_probability": 0.0796,
+        "correct": true
+      },
+      {
+        "text": "I disagree with you, but I respect your opinion.",
+        "expected": 0,
+        "predicted": 0,
+        "bullying_probability": 0.0735,
+        "correct": true
+      },
+      {
+        "text": "I hate this video, but I do not hate you.",
+        "expected": 0,
+        "predicted": 1,
+        "bullying_probability": 0.7943,
+        "correct": false
+      },
+      {
+        "text": "That was a dumb mistake; please be more careful next time.",
+        "expected": 0,
+        "predicted": 0,
+        "bullying_probability": 0.1062,
+        "correct": true
+      },
+      {
+        "text": "You are stupid and nobody likes you.",
+        "expected": 1,
+        "predicted": 1,
+        "bullying_probability": 0.9933,
+        "correct": true
+      },
+      {
+        "text": "Shut up, idiot. You are such a loser.",
+        "expected": 1,
+        "predicted": 1,
+        "bullying_probability": 0.9999,
+        "correct": true
+      }
+    ],
+    "vectorizer": {
+      "ngram_range": [
+        1,
+        2
+      ],
+      "max_features": 40000,
+      "min_df": 2,
+      "max_df": 0.98,
+      "sublinear_tf": true
+    }
+  }
+}

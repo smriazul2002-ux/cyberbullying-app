@@ -153,6 +153,14 @@ BASE_DIR = os.path.dirname(__file__)
 KEY_FILE = os.path.join(BASE_DIR, "secret.key")
 
 def load_or_create_key():
+    """Load a stable encryption key.
+
+    Production deployments should store ``encryption_key`` in Streamlit
+    secrets. The local key file remains supported for existing installations.
+    """
+    configured_key = st.secrets.get("app", {}).get("encryption_key")
+    if configured_key:
+        return configured_key.encode()
     if os.path.exists(KEY_FILE):
         with open(KEY_FILE, "rb") as f:
             return f.read()
@@ -339,7 +347,7 @@ def login():
                     except Exception as e:
                         record_failed_attempt(email)
                         log_audit("login_failed", str(e))
-                        st.error(f"Login failed: {e}")
+                        st.error("Login failed. Please check your email and password.")
 
     with col2:
         if st.button("Register"):
@@ -350,8 +358,8 @@ def login():
                 log_audit("account_registered", email)
                 st.success("Account created successfully")
 
-            except Exception as e:
-                st.error(f"Register failed: {e}")
+            except Exception:
+                st.error("Registration failed. Check the email and password requirements, then try again.")
 
     with st.expander("Forgot password?"):
         reset_email = st.text_input("Enter your account email", key="reset_email")
@@ -407,6 +415,10 @@ def predict(text):
     pred = model.predict(vec)[0]
     prob = model.predict_proba(vec)[0][1]
     return pred, prob
+
+def class_confidence(prediction, bullying_probability):
+    """Return confidence for the class that was actually predicted."""
+    return bullying_probability if int(prediction) == 1 else 1 - bullying_probability
 
 # 🔴 TOXIC WORD DETECTION
 def get_toxic_words(text, top_n=5):
@@ -584,18 +596,19 @@ with tab_analyze:
                 sentiment_label, polarity = get_sentiment(text)
                 time.sleep(0.4)
 
-            st.progress(int(prob * 100))
-            st.write(f"Confidence: {round(prob*100,2)}%")
+            confidence = class_confidence(result, prob)
+            st.progress(int(confidence * 100))
+            st.write(f"Confidence: {round(confidence*100,2)}%")
 
             if result == 1:
-                if prob > 0.8:
-                    st.error(f"🚨 HIGH Cyberbullying ({prob*100:.2f}%)")
-                elif prob > 0.5:
-                    st.warning(f"⚠️ Medium Risk ({prob*100:.2f}%)")
+                if confidence > 0.8:
+                    st.error(f"🚨 HIGH Cyberbullying ({confidence*100:.2f}%)")
+                elif confidence > 0.5:
+                    st.warning(f"⚠️ Medium Risk ({confidence*100:.2f}%)")
                 else:
-                    st.info(f"😐 Low Risk ({prob*100:.2f}%)")
+                    st.info(f"😐 Low Risk ({confidence*100:.2f}%)")
             else:
-                st.success(f"😊 Safe ({prob*100:.2f}%)")
+                st.success(f"😊 Safe ({confidence*100:.2f}%)")
 
             st.markdown(sentiment_badge(sentiment_label), unsafe_allow_html=True)
             st.caption(f"Sentiment polarity score: {round(polarity, 3)}")
@@ -716,26 +729,33 @@ with tab_history:
         angry = r.get("angry", 0)
 
         col1, col2, col3, col4 = st.columns(4)
+        reaction_changed = False
 
         with col1:
             if st.button(f"👍 {like}", key="l"+post_id):
                 r["like"] = like + 1
+                reaction_changed = True
 
         with col2:
             if st.button(f"❤️ {love}", key="lo"+post_id):
                 r["love"] = love + 1
+                reaction_changed = True
 
         with col3:
             if st.button(f"😂 {haha}", key="h"+post_id):
                 r["haha"] = haha + 1
+                reaction_changed = True
 
         with col4:
             if st.button(f"😡 {angry}", key="a"+post_id):
                 r["angry"] = angry + 1
+                reaction_changed = True
 
-        db.child("posts").child(post_id).update({
-            "reactions": r
-        }, get_token())
+        if reaction_changed:
+            db.child("posts").child(post_id).update({
+                "reactions": r
+            }, get_token())
+            st.rerun()
 
         score = like + love + haha - angry
         st.caption(f"🔥 Score: {score}")
@@ -767,7 +787,7 @@ with tab_history:
             col_r1, col_r2 = st.columns(2)
             with col_r1:
                 if st.button("🚩 Report", key="rep"+post_id):
-                    report_post(post_id, user, d.get("text", ""))
+                    report_post(post_id, user, "Reported by user for moderator review")
                     st.success(f"Reported {user}'s post to admins.")
             with col_r2:
                 if st.button("🚫 Block user", key="blk"+post_id):
@@ -1068,13 +1088,14 @@ with tab_voice:
                     toxic_words = get_toxic_words(transcribed_text)
                     sentiment_label, polarity = get_sentiment(transcribed_text)
 
-                st.progress(int(prob * 100))
-                st.write(f"Confidence: {round(prob*100,2)}%")
+                confidence = class_confidence(result, prob)
+                st.progress(int(confidence * 100))
+                st.write(f"Confidence: {round(confidence*100,2)}%")
 
                 if result == 1:
-                    st.error(f"🚨 Cyberbullying detected in audio ({prob*100:.2f}%)")
+                    st.error(f"🚨 Cyberbullying detected in audio ({confidence*100:.2f}%)")
                 else:
-                    st.success(f"😊 Safe ({prob*100:.2f}%)")
+                    st.success(f"😊 Safe ({confidence*100:.2f}%)")
 
                 st.markdown(sentiment_badge(sentiment_label), unsafe_allow_html=True)
 

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "481768842261",
+    "firebase_url": "https://cyberbullyinapp-d427c-default-rtdb.firebaseio.com",
+    "project_id": "cyberbullyinapp-d427c",
+    "storage_bucket": "cyberbullyinapp-d427c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:481768842261:android:5e81973af4ca858b0fda1c",
+        "android_client_info": {
+          "package_name": "com.example.cyber_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "481768842261-r544moehsa7cjnndfo5lt2849lgd76c1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDctSASv_gd2FeDlaZngN_QCnZM25e44oU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "481768842261-r544moehsa7cjnndfo5lt2849lgd76c1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "481768842261-5dk4ea6f4v13mo40b5917ou8b7r10r1p.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cyberApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

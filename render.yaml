@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: cyberbullying-shield-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: MODEL_VERSION
+        value: hybrid-tfidf-rules-v2.0
