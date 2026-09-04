@@ -11,8 +11,8 @@ import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-const _apiUrl =
-    String.fromEnvironment('API_URL', defaultValue: 'http://127.0.0.1:8000');
+const _apiUrl = String.fromEnvironment('API_URL',
+    defaultValue: 'https://cyberbullying-shield-api.onrender.com');
 const _adminEmail = String.fromEnvironment('ADMIN_EMAIL', defaultValue: '');
 
 class _Db {

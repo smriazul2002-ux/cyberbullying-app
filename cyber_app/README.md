@@ -2,6 +2,8 @@
 
 Final-year project mobile/web client for ML-assisted cyberbullying detection.
 
+Production API: `https://cyberbullying-shield-api.onrender.com`
+
 ## Implemented features
 
 - Firebase email/password authentication and password reset

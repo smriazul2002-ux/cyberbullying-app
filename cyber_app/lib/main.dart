@@ -232,7 +232,8 @@ class _MainScreenState extends State<MainScreen> {
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: "Detector"),
-          NavigationDestination(icon: Icon(Icons.shield_outlined), label: "Protector"),
+          NavigationDestination(
+              icon: Icon(Icons.shield_outlined), label: "Protector"),
           NavigationDestination(icon: Icon(Icons.info_outline), label: "Info"),
         ],
       ),
@@ -255,7 +256,8 @@ class _DetectorTabState extends State<DetectorTab> {
 
   final TextEditingController controller = TextEditingController();
 
-  static const String apiUrl = "http://127.0.0.1:8000/predict";
+  static const String apiUrl =
+      "https://cyberbullying-shield-api.onrender.com/predict";
 
   Future<void> checkText() async {
     if (controller.text.trim().isEmpty) {
@@ -320,14 +322,18 @@ class _DetectorTabState extends State<DetectorTab> {
             maxLines: 4,
             decoration: InputDecoration(
               hintText: "Enter text to check...",
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: isLoading ? null : checkText,
             child: isLoading
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Text("Check"),
           ),
           const SizedBox(height: 24),
@@ -339,9 +345,12 @@ class _DetectorTabState extends State<DetectorTab> {
                     ? Colors.red.withValues(alpha: 0.1)
                     : Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isBullying ? Colors.red : Colors.green),
+                border:
+                    Border.all(color: isBullying ? Colors.red : Colors.green),
               ),
-              child: Text(result, style: const TextStyle(fontSize: 18), textAlign: TextAlign.center),
+              child: Text(result,
+                  style: const TextStyle(fontSize: 18),
+                  textAlign: TextAlign.center),
             ),
         ],
       ),
@@ -375,11 +384,17 @@ class _ProtectorTabState extends State<ProtectorTab> {
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("YouTube Channel Protection", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text("YouTube Channel Protection",
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 SizedBox(height: 8),
-                Text("Connect your OWN YouTube channel to automatically detect and remove cyberbullying comments, and block repeat offenders from commenting again.", style: TextStyle(fontSize: 14)),
+                Text(
+                    "Connect your OWN YouTube channel to automatically detect and remove cyberbullying comments, and block repeat offenders from commenting again.",
+                    style: TextStyle(fontSize: 14)),
                 SizedBox(height: 8),
-                Text("Note: This only works for channels you own and manage, since YouTube only allows channel owners to moderate their own comments via official API permissions.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(
+                    "Note: This only works for channels you own and manage, since YouTube only allows channel owners to moderate their own comments via official API permissions.",
+                    style: TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ),
@@ -388,7 +403,9 @@ class _ProtectorTabState extends State<ProtectorTab> {
             ElevatedButton.icon(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("YouTube OAuth connection coming in the next build phase.")),
+                  const SnackBar(
+                      content: Text(
+                          "YouTube OAuth connection coming in the next build phase.")),
                 );
               },
               icon: const Icon(Icons.link),
@@ -397,11 +414,21 @@ class _ProtectorTabState extends State<ProtectorTab> {
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 12),
-          const Text("Once connected, this tab will show:", style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text("Once connected, this tab will show:",
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const ListTile(leading: Icon(Icons.check_circle_outline), title: Text("Auto-removed comments log"), dense: true),
-          const ListTile(leading: Icon(Icons.block), title: Text("Blocked users list"), dense: true),
-          const ListTile(leading: Icon(Icons.notifications_active_outlined), title: Text("Real-time protection status"), dense: true),
+          const ListTile(
+              leading: Icon(Icons.check_circle_outline),
+              title: Text("Auto-removed comments log"),
+              dense: true),
+          const ListTile(
+              leading: Icon(Icons.block),
+              title: Text("Blocked users list"),
+              dense: true),
+          const ListTile(
+              leading: Icon(Icons.notifications_active_outlined),
+              title: Text("Real-time protection status"),
+              dense: true),
         ],
       ),
     );
@@ -418,19 +445,27 @@ class InfoTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("About This App", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text("About This App",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          const Text("Cyberbullying Shield is a three-part system designed to detect and reduce cyberbullying across platforms:"),
+          const Text(
+              "Cyberbullying Shield is a three-part system designed to detect and reduce cyberbullying across platforms:"),
           const SizedBox(height: 16),
-          _infoCard("Detector", "Check any text or comment for cyberbullying using a trained machine learning model."),
-          _infoCard("Protector", "Connect your own YouTube channel to automatically remove harmful comments and block repeat offenders."),
-          _infoCard("Browser Extension", "A companion Chrome extension highlights harmful comments in real time directly on Facebook, YouTube, and X while you browse."),
+          _infoCard("Detector",
+              "Check any text or comment for cyberbullying using a trained machine learning model."),
+          _infoCard("Protector",
+              "Connect your own YouTube channel to automatically remove harmful comments and block repeat offenders."),
+          _infoCard("Browser Extension",
+              "A companion Chrome extension highlights harmful comments in real time directly on Facebook, YouTube, and X while you browse."),
           const SizedBox(height: 20),
           const Divider(),
           const SizedBox(height: 12),
-          const Text("Known Limitations", style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text("Known Limitations",
+              style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text("The model is trained on English text and may not reliably classify Bengali or other languages. Automatic moderation only works on platforms/content you own, due to platform API restrictions.", style: TextStyle(color: Colors.grey)),
+          const Text(
+              "The model is trained on English text and may not reliably classify Bengali or other languages. Automatic moderation only works on platforms/content you own, due to platform API restrictions.",
+              style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
