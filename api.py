@@ -114,6 +114,22 @@ def model_info():
     }
 
 
+@app.get("/model/evaluation")
+def model_evaluation():
+    """Return the reproducible holdout evaluation used for model promotion."""
+    report_path = os.path.join(BASE_DIR, "model_candidate_report.json")
+    if not os.path.exists(report_path):
+        raise HTTPException(status_code=404, detail="Model evaluation report not found")
+    with open(report_path, encoding="utf-8") as handle:
+        report = json.load(handle)
+    report["active_model_version"] = MODEL_VERSION
+    report["active_threshold"] = MODEL_THRESHOLD
+    report["promotion_status"] = (
+        "active" if report.get("model_version") == MODEL_VERSION else "candidate"
+    )
+    return report
+
+
 DETECTION_RULES = {
     "Self-harm encouragement": [r"kill yourself", r"kys", r"slit your wrist", r"মরে যা"],
     "Threat": [r"i(?:'ll| will) (?:hurt|kill|beat)", r"you will die", r"watch your back", r"মেরে ফেল", r"মারব"],

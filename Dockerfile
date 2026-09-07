@@ -8,7 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY api.py utils.py cyberbullying_model.pkl tfidf_vectorizer.pkl ./
+COPY api.py utils.py cyberbullying_model.pkl tfidf_vectorizer.pkl model_candidate_report.json ./
 
 EXPOSE 8080
 

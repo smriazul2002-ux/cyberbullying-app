@@ -136,6 +136,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
     final pages = <Widget>[
       _Dashboard(db),
       _Analytics(db),
+      _ModelEvaluation(db),
       _Detector(db),
       _SocialProtection(db),
       _ReviewQueue(db),
@@ -149,6 +150,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
     final labels = <String>[
       'Dashboard',
       'Analytics',
+      'Model Evaluation',
       'Detector',
       'Facebook & Instagram',
       'Review Queue',
@@ -162,6 +164,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
     final icons = <IconData>[
       Icons.dashboard,
       Icons.analytics,
+      Icons.model_training,
       Icons.search,
       Icons.forum,
       Icons.fact_check,
@@ -881,6 +884,183 @@ class _ReviewQueueState extends State<_ReviewQueue> {
                             label: const Text('Confirm')),
                       ]))
                 ]))
+        ]);
+      });
+}
+
+class _ModelEvaluation extends StatelessWidget {
+  const _ModelEvaluation(this.db);
+  final _Db db;
+
+  Future<Map<String, dynamic>> _load() async {
+    final results = await Future.wait([
+      db.history(),
+      http.get(Uri.parse('$_apiUrl/model/evaluation')),
+    ]);
+    final response = results[1] as http.Response;
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Evaluation API ${response.statusCode}: ${response.body}');
+    }
+    return {
+      'rows': results[0] as List<Map<String, dynamic>>,
+      'report': jsonDecode(response.body) as Map<String, dynamic>,
+    };
+  }
+
+  Widget _metricCell(String label, Object? value, Color color) => Expanded(
+      child: Card(
+          child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(children: [
+                Text('$value',
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold)),
+                Text(label, textAlign: TextAlign.center),
+              ]))));
+
+  Widget _modelCard(String title, Map<String, dynamic> data,
+      {required bool active}) {
+    final metrics = Map<String, dynamic>.from(data['metrics'] as Map);
+    String percent(String key) =>
+        '${(((metrics[key] ?? 0) as num) * 100).toStringAsFixed(2)}%';
+    return Card(
+        color: active ? Colors.green.withValues(alpha: 0.08) : null,
+        child: Padding(
+            padding: const EdgeInsets.all(16),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                    child: Text(title,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold))),
+                if (active)
+                  const Chip(
+                      avatar: Icon(Icons.check_circle,
+                          color: Colors.green, size: 18),
+                      label: Text('Active')),
+              ]),
+              const SizedBox(height: 8),
+              Text('Accuracy ${percent('accuracy')}'),
+              Text('Precision ${percent('precision')}'),
+              Text('Recall ${percent('recall')}'),
+              Text('F1 score ${percent('f1')}'),
+            ])));
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
+      future: _load(),
+      builder: (_, snapshot) {
+        if (snapshot.hasError) return _error('${snapshot.error}');
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final data = snapshot.data!;
+        final rows = data['rows'] as List<Map<String, dynamic>>;
+        final report = data['report'] as Map<String, dynamic>;
+        final reviewed = rows
+            .where((row) =>
+                row['feedback'] == 'correct' || row['feedback'] == 'wrong')
+            .toList();
+        final wrong =
+            reviewed.where((row) => row['feedback'] == 'wrong').toList();
+        var tp = 0;
+        var tn = 0;
+        var fp = 0;
+        var fn = 0;
+        for (final row in reviewed) {
+          final predictedHarmful = row['prediction'] == 'Cyberbullying';
+          final actualLabel = row['feedback'] == 'correct'
+              ? row['prediction']
+              : row['correctedLabel'];
+          final actualHarmful = actualLabel != 'Safe';
+          if (predictedHarmful && actualHarmful) tp++;
+          if (!predictedHarmful && !actualHarmful) tn++;
+          if (predictedHarmful && !actualHarmful) fp++;
+          if (!predictedHarmful && actualHarmful) fn++;
+        }
+        final feedbackAccuracy = reviewed.isEmpty
+            ? 0.0
+            : (reviewed.length - wrong.length) * 100 / reviewed.length;
+        final needed = math.max(0, 100 - reviewed.length);
+        final current = Map<String, dynamic>.from(report['current'] as Map);
+        final candidate = Map<String, dynamic>.from(report['candidate'] as Map);
+        return ListView(padding: const EdgeInsets.all(16), children: [
+          const Text('Active Learning & Model Evaluation',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(
+              'Active model: ${report['active_model_version']} • Threshold: ${report['active_threshold']}'),
+          const SizedBox(height: 12),
+          Row(children: [
+            _metricCell('Reviewed', reviewed.length, Colors.blue),
+            _metricCell(
+                'Correct', reviewed.length - wrong.length, Colors.green),
+            _metricCell('Wrong', wrong.length, Colors.red),
+            _metricCell('Feedback accuracy',
+                '${feedbackAccuracy.toStringAsFixed(1)}%', Colors.deepPurple),
+          ]),
+          const SizedBox(height: 12),
+          Card(
+              child: ListTile(
+            leading: Icon(needed == 0 ? Icons.verified : Icons.hourglass_bottom,
+                color: needed == 0 ? Colors.green : Colors.orange),
+            title: Text(needed == 0
+                ? 'Dataset is ready for the next training experiment'
+                : '$needed more reviewed examples recommended'),
+            subtitle: const Text(
+                'New models are evaluated first and promoted only when quality improves.'),
+          )),
+          const SizedBox(height: 12),
+          const Text('Offline holdout comparison',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          LayoutBuilder(builder: (_, constraints) {
+            final cards = [
+              _modelCard('Previous model (v2)', current, active: false),
+              _modelCard('Word + character hybrid (v3)', candidate,
+                  active: true),
+            ];
+            return constraints.maxWidth > 700
+                ? Row(
+                    children:
+                        cards.map((card) => Expanded(child: card)).toList())
+                : Column(children: cards);
+          }),
+          const SizedBox(height: 12),
+          const Text('Human feedback confusion matrix',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Row(children: [
+            _metricCell('True harmful', tp, Colors.green),
+            _metricCell('True safe', tn, Colors.green),
+            _metricCell('False alarm', fp, Colors.orange),
+            _metricCell('Missed harmful', fn, Colors.red),
+          ]),
+          const SizedBox(height: 12),
+          Text('Incorrect predictions (${wrong.length})',
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          if (wrong.isEmpty)
+            const Card(
+                child: ListTile(
+                    leading: Icon(Icons.task_alt, color: Colors.green),
+                    title: Text('No corrected predictions yet'),
+                    subtitle: Text('Use thumbs down in History to add one.')))
+          else
+            ...wrong.map((row) => Column(children: [
+                  _resultTile(row),
+                  Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                          child: Text(
+                              'Human label: ${row['correctedLabel'] ?? 'Not supplied'}',
+                              style: const TextStyle(
+                                  color: Colors.deepPurple,
+                                  fontWeight: FontWeight.bold))))
+                ])),
         ]);
       });
 }
