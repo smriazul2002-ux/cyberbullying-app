@@ -14,7 +14,8 @@ from pydantic import BaseModel
 from utils import clean_text, check_bangla_toxic
 
 BASE_DIR = os.path.dirname(__file__)
-MODEL_VERSION = os.getenv("MODEL_VERSION", "hybrid-tfidf-rules-v2.0")
+MODEL_VERSION = os.getenv("MODEL_VERSION", "hybrid-word-char-rules-v3.0")
+MODEL_THRESHOLD = float(os.getenv("MODEL_THRESHOLD", "0.40"))
 MODEL_PATH = os.getenv("MODEL_PATH", os.path.join(BASE_DIR, "cyberbullying_model.pkl"))
 VECTORIZER_PATH = os.getenv(
     "VECTORIZER_PATH", os.path.join(BASE_DIR, "tfidf_vectorizer.pkl")
@@ -109,6 +110,7 @@ def model_info():
         "transformer_ready": transformer_classifier is not None,
         "fallback_active": bool(TRANSFORMER_MODEL_NAME and not transformer_classifier),
         "load_error": transformer_error,
+        "decision_threshold": MODEL_THRESHOLD,
     }
 
 
@@ -141,8 +143,18 @@ def explain_text(text: str, bangla_hits: list[str], aggressive_emojis: list[str]
 def analyze_text(text: str):
     cleaned = clean_text(text)
     vec = vectorizer.transform([cleaned])
-    pred = int(model.predict(vec)[0])
     bullying_probability = float(model.predict_proba(vec)[0][1])
+    pred = int(bullying_probability >= MODEL_THRESHOLD)
+    lowered_text = text.lower()
+    # Avoid treating criticism of content as an attack on a person when the
+    # same sentence explicitly denies hostility toward the person.
+    non_personal_negation = bool(re.search(
+        r"\b(?:hate|dislike)\s+(?:this|the)\s+(?:video|post|idea|content|comment)\b.*\b(?:do not|don't)\s+(?:hate|dislike)\s+you\b",
+        lowered_text,
+    ))
+    if non_personal_negation:
+        bullying_probability = min(bullying_probability, 0.20)
+        pred = 0
     if transformer_classifier is not None:
         transformer_result = transformer_classifier(text, truncation=True)[0]
         label = str(transformer_result.get("label", "")).lower()
@@ -151,7 +163,7 @@ def analyze_text(text: str):
             "toxic" in label or label in {"label_1", "1"}
         ) else 1 - score
         bullying_probability = max(bullying_probability, transformer_probability)
-        pred = int(bullying_probability >= 0.5)
+        pred = int(bullying_probability >= MODEL_THRESHOLD)
     # The original model was trained mostly on words.  Add a small, explainable
     # signal for clearly abusive/threatening emoji combinations without treating
     # every negative emoji as bullying.

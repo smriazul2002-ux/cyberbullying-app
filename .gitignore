@@ -2,3 +2,7 @@
 secret.key
 __pycache__/
 .pytest_cache/
+.DS_Store
+cyber_app/.firebase/
+cyberbullying_model_candidate.pkl
+tfidf_vectorizer_candidate.pkl

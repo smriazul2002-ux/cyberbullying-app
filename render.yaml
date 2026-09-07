@@ -6,4 +6,6 @@ services:
     healthCheckPath: /
     envVars:
       - key: MODEL_VERSION
-        value: hybrid-tfidf-rules-v2.0
+        value: hybrid-word-char-rules-v3.0
+      - key: MODEL_THRESHOLD
+        value: "0.40"
