@@ -966,8 +966,17 @@ class _ModelEvaluation extends StatelessWidget {
             .where((row) =>
                 row['feedback'] == 'correct' || row['feedback'] == 'wrong')
             .toList();
-        final wrong =
-            reviewed.where((row) => row['feedback'] == 'wrong').toList();
+        bool isBinaryMismatch(Map<String, dynamic> row) {
+          final predictedHarmful = row['prediction'] == 'Cyberbullying';
+          final actualLabel = row['feedback'] == 'correct'
+              ? row['prediction']
+              : row['correctedLabel'];
+          if (actualLabel == null) return true;
+          final actualHarmful = actualLabel != 'Safe';
+          return predictedHarmful != actualHarmful;
+        }
+
+        final wrong = reviewed.where(isBinaryMismatch).toList();
         var tp = 0;
         var tn = 0;
         var fp = 0;
@@ -1076,8 +1085,7 @@ class _DatasetManager extends StatelessWidget {
     final lines = <String>[
       'text,label,original_prediction,category,source,model_version,feedback,created_at',
       ...rows.map((row) {
-        final label = row['correctedLabel'] ??
-            (row['prediction'] == 'Safe' ? 'Safe' : row['category']);
+        final label = row['correctedLabel'] ?? row['prediction'];
         return [
           row['text'],
           label,
@@ -1143,7 +1151,7 @@ class _DatasetManager extends StatelessWidget {
                   title: Text('${row['text'] ?? ''}',
                       maxLines: 2, overflow: TextOverflow.ellipsis),
                   subtitle: Text(
-                      'Training label: ${row['correctedLabel'] ?? (row['prediction'] == 'Safe' ? 'Safe' : row['category'])}\nSource: ${row['source'] ?? 'Detector'}'),
+                      'Training label: ${row['correctedLabel'] ?? row['prediction']}\nSource: ${row['source'] ?? 'Detector'}'),
                   isThreeLine: true,
                 )))
         ]);
@@ -1346,17 +1354,11 @@ class _HistoryState extends State<_History> {
               content: DropdownButtonFormField<String>(
                   initialValue: selectedLabel,
                   decoration: const InputDecoration(
-                      labelText: 'Correct classification',
+                      labelText: 'Correct overall result',
                       border: OutlineInputBorder()),
                   items: const [
                     'Safe',
-                    'Insult',
-                    'Threat',
-                    'Hate speech',
-                    'Sexual harassment',
-                    'Body shaming',
-                    'Self-harm encouragement',
-                    'General harassment'
+                    'Cyberbullying',
                   ]
                       .map((label) =>
                           DropdownMenuItem(value: label, child: Text(label)))

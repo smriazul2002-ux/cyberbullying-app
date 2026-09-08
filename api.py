@@ -131,8 +131,8 @@ def model_evaluation():
 
 
 DETECTION_RULES = {
-    "Self-harm encouragement": [r"kill yourself", r"kys", r"slit your wrist", r"মরে যা"],
-    "Threat": [r"i(?:'ll| will) (?:hurt|kill|beat)", r"you will die", r"watch your back", r"মেরে ফেল", r"মারব"],
+    "Self-harm encouragement": [r"kill yourself", r"kys", r"slit your wrist", r"মরে যা", r"\bmore ja\b"],
+    "Threat": [r"i(?:'ll| will) (?:hurt|kill|beat)", r"you will die", r"watch your back", r"মেরে ফেল", r"মারব", r"\b(?:toke|tomake) mere felbo\b", r"\b(?:toke|tomake) marbo\b"],
     "Hate speech": [r"wipeout", r"exterminate", r"go back to your country", r"all .* are (?:dirty|evil)"],
     "Sexual harassment": [r"slut", r"whore", r"send nudes", r"rape"],
     "Body shaming": [r"fat pig", r"ugly", r"too fat", r"too skinny"],
