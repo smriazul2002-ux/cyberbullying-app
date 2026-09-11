@@ -2,14 +2,17 @@ import os
 import pickle
 import json
 import re
+import time
+from collections import defaultdict, deque
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from typing import Optional
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from utils import clean_text, check_bangla_toxic
 
@@ -30,10 +33,41 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["https://cyberbullyinapp-d427c.web.app"],
+    allow_origin_regex=r"https://cyberbullyinapp-d427c\.web\.app|http://(?:localhost|127\.0\.0\.1)(?::\d+)?",
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+RATE_LIMIT = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+MAX_BODY_BYTES = int(os.getenv("MAX_BODY_BYTES", "20000"))
+_requests = defaultdict(deque)
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    if int(request.headers.get("content-length", "0") or 0) > MAX_BODY_BYTES:
+        return JSONResponse(
+            status_code=413, content={"detail": "Request body is too large"}
+        )
+    client = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    bucket = _requests[client]
+    while bucket and now - bucket[0] >= 60:
+        bucket.popleft()
+    if len(bucket) >= RATE_LIMIT:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests. Please try again shortly."},
+            headers={"Retry-After": "60"},
+        )
+    bucket.append(now)
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
 
 model = pickle.load(open(MODEL_PATH, "rb"))
 vectorizer = pickle.load(open(VECTORIZER_PATH, "rb"))
@@ -51,7 +85,7 @@ if TRANSFORMER_MODEL_NAME:
 
 
 class TextInput(BaseModel):
-    text: str
+    text: str = Field(min_length=1, max_length=5000)
 
 
 class PredictionResponse(BaseModel):
@@ -98,6 +132,17 @@ def root():
     return {
         "message": "Cyberbullying Detection API is running. See /docs for usage.",
         "features": ["prediction", "bangla keyword check", "YouTube protection"],
+    }
+
+
+@app.get("/security/status")
+def security_status():
+    return {
+        "cors_allowlist": True,
+        "rate_limit_per_minute": RATE_LIMIT,
+        "max_text_length": 5000,
+        "max_body_bytes": MAX_BODY_BYTES,
+        "security_headers": True,
     }
 
 

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:file_saver/file_saver.dart';
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -73,24 +74,89 @@ class _Db {
     return 'a_${hash.toRadixString(16).padLeft(8, '0')}';
   }
 
-  Future<void> save(Map<String, dynamic> data) =>
-      call('analyses/${user.uid}/${_analysisKey(data)}',
-          method: 'PATCH', body: data);
-  Future<void> deleteAnalysis(String id) =>
-      call('analyses/${user.uid}/$id', method: 'DELETE');
-  Future<void> clearHistory() => call('analyses/${user.uid}', method: 'DELETE');
-  Future<void> reviewStatus(String analysisId, String value) =>
-      call('analyses/${user.uid}/$analysisId', method: 'PATCH', body: {
-        'reviewStatus': value,
-        'reviewedAt': DateTime.now().toIso8601String(),
-      });
+  String _evidenceDigest(Map<String, dynamic> data) => sha256
+      .convert(utf8.encode(
+          '${data['analysisId']}|${data['text']}|${data['prediction']}|${data['confidence']}|${data['category']}|${data['risk_level']}|${data['source']}|${data['model_version']}|${data['createdAt']}'))
+      .toString();
+
+  Future<void> audit(String action, String targetId,
+      {Map<String, dynamic>? details}) async {
+    await call('auditLogs/${user.uid}', method: 'POST', body: {
+      'actorUid': user.uid,
+      'action': action,
+      'targetId': targetId,
+      'details': details ?? <String, dynamic>{},
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  Future<void> save(Map<String, dynamic> data) async {
+    final id = _analysisKey(data);
+    await call('analyses/${user.uid}/$id', method: 'PATCH', body: data);
+    await audit('analysis.saved', id,
+        details: {'source': data['source'] ?? 'Detector'});
+    if (data['prediction'] == 'Cyberbullying') {
+      final createdAt =
+          '${data['createdAt'] ?? DateTime.now().toUtc().toIso8601String()}';
+      final evidence = <String, dynamic>{
+        'analysisId': id,
+        'text': data['text'] ?? '',
+        'prediction': data['prediction'],
+        'confidence': data['confidence'] ?? 0,
+        'category': data['category'] ?? 'Cyberbullying',
+        'risk_level': data['risk_level'] ?? 'Medium',
+        'source': data['source'] ?? 'Detector',
+        'model_version':
+            data['model_version'] ?? data['modelVersion'] ?? 'Legacy',
+        'createdAt': createdAt,
+        'capturedAt': DateTime.now().toUtc().toIso8601String(),
+        'hashAlgorithm': 'SHA-256',
+      };
+      evidence['evidenceHash'] = _evidenceDigest(evidence);
+      if (await call('evidence/${user.uid}/$id') == null) {
+        await call('evidence/${user.uid}/$id', method: 'PUT', body: evidence);
+        await audit('evidence.sealed', id);
+      }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> evidence() async =>
+      records(await call('evidence/${user.uid}'));
+  Future<List<Map<String, dynamic>>> auditLogs() async =>
+      records(await call('auditLogs/${user.uid}'));
+  bool verifyEvidence(Map<String, dynamic> row) =>
+      row['evidenceHash'] == _evidenceDigest(row);
+  Future<void> deleteAnalysis(String id) async {
+    await call('analyses/${user.uid}/$id', method: 'DELETE');
+    await audit('analysis.deleted', id);
+  }
+
+  Future<void> clearHistory() async {
+    await call('analyses/${user.uid}', method: 'DELETE');
+    await audit('history.cleared', 'all');
+  }
+
+  Future<void> reviewStatus(String analysisId, String value) async {
+    await call('analyses/${user.uid}/$analysisId', method: 'PATCH', body: {
+      'reviewStatus': value,
+      'reviewedAt': DateTime.now().toIso8601String(),
+    });
+    await audit('review.$value', analysisId);
+  }
+
   Future<void> feedback(String analysisId, bool correct,
-          {String? correctedLabel}) =>
-      call('analyses/${user.uid}/$analysisId', method: 'PATCH', body: {
-        'feedback': correct ? 'correct' : 'wrong',
-        if (correctedLabel != null) 'correctedLabel': correctedLabel,
-        'feedbackAt': DateTime.now().toIso8601String(),
-      });
+      {String? correctedLabel}) async {
+    await call('analyses/${user.uid}/$analysisId', method: 'PATCH', body: {
+      'feedback': correct ? 'correct' : 'wrong',
+      if (correctedLabel != null) 'correctedLabel': correctedLabel,
+      'feedbackAt': DateTime.now().toIso8601String(),
+    });
+    await audit('feedback.${correct ? 'correct' : 'wrong'}', analysisId,
+        details: {
+          if (correctedLabel != null) 'correctedLabel': correctedLabel
+        });
+  }
+
   Future<void> report(Map<String, dynamic> data) =>
       call('reports', method: 'POST', body: data);
   Future<List<Map<String, dynamic>>> reports() async =>
@@ -142,6 +208,9 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
       _ReviewQueue(db),
       _DatasetManager(db),
       _History(db),
+      _EvidenceVault(db),
+      _AuditLog(db),
+      _SecurityCenter(isAdmin),
       _Protection(db),
       _Notices(db),
       if (isAdmin) _Admin(db),
@@ -156,6 +225,9 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
       'Review Queue',
       'Training Dataset',
       'History',
+      'Evidence Vault',
+      'Audit Log',
+      'Security Center',
       'YouTube Protection',
       'Notifications',
       if (isAdmin) 'Admin',
@@ -170,6 +242,9 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
       Icons.fact_check,
       Icons.dataset,
       Icons.history,
+      Icons.verified_user,
+      Icons.receipt_long,
+      Icons.security,
       Icons.shield,
       Icons.notifications,
       if (isAdmin) Icons.admin_panel_settings,
@@ -1708,4 +1783,139 @@ class _ProtectionState extends State<_Protection> {
           Padding(padding: const EdgeInsets.all(12), child: Text(status)),
         ...comments.map((c) => _resultTile(Map<String, dynamic>.from(c))),
       ]);
+}
+
+class _EvidenceVault extends StatelessWidget {
+  const _EvidenceVault(this.db);
+  final _Db db;
+
+  @override
+  Widget build(BuildContext context) =>
+      FutureBuilder<List<Map<String, dynamic>>>(
+          future: db.evidence(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                  child:
+                      Text('Evidence could not be loaded: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final rows = snapshot.data!;
+            if (rows.isEmpty) {
+              return const Center(
+                  child: Text(
+                      'No sealed evidence yet. Harmful detections will appear here.'));
+            }
+            return ListView(padding: const EdgeInsets.all(18), children: [
+              Text('${rows.length} immutable evidence record(s)',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const Text('Each record has a SHA-256 integrity fingerprint.'),
+              const SizedBox(height: 12),
+              ...rows.map((row) {
+                final verified = db.verifyEvidence(row);
+                final hash = '${row['evidenceHash'] ?? ''}';
+                return Card(
+                    child: ListTile(
+                  leading: Icon(verified ? Icons.verified : Icons.gpp_bad,
+                      color: verified ? Colors.green : Colors.red),
+                  title: Text('${row['text'] ?? ''}',
+                      maxLines: 3, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                      '${row['category']} • ${row['risk_level']} risk\nSource: ${row['source']} • Model: ${row['model_version']}\nSHA-256: ${hash.length > 20 ? '${hash.substring(0, 20)}…' : hash}\nCaptured: ${row['capturedAt'] ?? row['createdAt']}'),
+                  trailing:
+                      Chip(label: Text(verified ? 'Verified' : 'Changed')),
+                  isThreeLine: true,
+                ));
+              }),
+            ]);
+          });
+}
+
+class _AuditLog extends StatelessWidget {
+  const _AuditLog(this.db);
+  final _Db db;
+
+  @override
+  Widget build(BuildContext context) =>
+      FutureBuilder<List<Map<String, dynamic>>>(
+          future: db.auditLogs(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                  child:
+                      Text('Audit log could not be loaded: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final rows = snapshot.data!;
+            if (rows.isEmpty) {
+              return const Center(child: Text('No security events yet.'));
+            }
+            return ListView(padding: const EdgeInsets.all(18), children: [
+              Text('Append-only activity trail',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const Text('Events cannot be edited or deleted from the app.'),
+              const SizedBox(height: 12),
+              ...rows.map((row) => Card(
+                      child: ListTile(
+                    leading: const Icon(Icons.security),
+                    title: Text('${row['action'] ?? 'event'}'),
+                    subtitle: Text(
+                        'Target: ${row['targetId'] ?? '-'}\n${row['createdAt'] ?? ''}'),
+                  ))),
+            ]);
+          });
+}
+
+class _SecurityCenter extends StatelessWidget {
+  const _SecurityCenter(this.isAdmin);
+  final bool isAdmin;
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          Text('Security Center',
+              style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          ListTile(
+              leading: const Icon(Icons.badge),
+              title: const Text('Current role'),
+              trailing: Chip(label: Text(isAdmin ? 'Admin' : 'User'))),
+          const Card(
+              child: Column(children: [
+            ListTile(
+                leading: Icon(Icons.speed, color: Colors.green),
+                title: Text('API abuse protection'),
+                subtitle:
+                    Text('Rate limiting and request-size limits enabled')),
+            Divider(height: 1),
+            ListTile(
+                leading: Icon(Icons.public_off, color: Colors.green),
+                title: Text('Restricted web access'),
+                subtitle:
+                    Text('CORS allowlist and secure response headers enabled')),
+            Divider(height: 1),
+            ListTile(
+                leading: Icon(Icons.lock, color: Colors.green),
+                title: Text('Evidence integrity'),
+                subtitle: Text(
+                    'Immutable records protected with SHA-256 fingerprints')),
+            Divider(height: 1),
+            ListTile(
+                leading: Icon(Icons.receipt_long, color: Colors.green),
+                title: Text('Audit trail'),
+                subtitle:
+                    Text('Security actions are stored as append-only events')),
+          ])),
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text(
+                'Privacy note: access is enforced per signed-in user. Admin access is restricted by Firebase rules.'),
+          ),
+        ],
+      );
 }

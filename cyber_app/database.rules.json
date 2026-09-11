@@ -14,10 +14,25 @@
       ".read": "auth != null && auth.uid === $uid",
       ".write": "auth != null && auth.uid === $uid"
     }},
+    "roles": { "$uid": {
+      ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
+      ".write": false
+    }},
+    "evidence": { "$uid": {
+      ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
+      "$evidenceId": {
+        ".write": "auth != null && auth.uid === $uid && !data.exists()",
+        ".validate": "newData.hasChildren(['analysisId','text','prediction','createdAt','evidenceHash','hashAlgorithm'])"
+      }
+    }},
+    "auditLogs": { "$uid": {
+      ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
+      "$eventId": { ".write": "auth != null && auth.uid === $uid && !data.exists()" }
+    }},
     "reports": {
-      ".read": "auth != null && auth.token.email === 'smriazul2002@gmail.com'",
+      ".read": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
       "$reportId": {
-        ".write": "auth != null && ((!data.exists() && newData.child('reporterUid').val() === auth.uid) || auth.token.email === 'smriazul2002@gmail.com')"
+        ".write": "auth != null && ((!data.exists() && newData.child('reporterUid').val() === auth.uid) || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')"
       }
     }
   }
