@@ -6,7 +6,7 @@ import time
 from collections import defaultdict, deque
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request as UrlRequest, urlopen
 from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi import HTTPException
@@ -276,7 +276,7 @@ def youtube_json(url: str, *, method: str = "GET", access_token: Optional[str] =
     headers = {"Accept": "application/json"}
     if access_token:
         headers["Authorization"] = f"Bearer {access_token}"
-    request = Request(url, method=method, headers=headers)
+    request = UrlRequest(url, method=method, headers=headers)
     try:
         with urlopen(request, timeout=20) as response:
             body = response.read()
