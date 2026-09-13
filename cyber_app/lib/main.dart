@@ -62,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
+  bool privacyConsent = false;
   String errorMessage = "";
 
   Future<void> login() async {
@@ -82,6 +83,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> register() async {
+    if (!privacyConsent) {
+      setState(() => errorMessage =
+          'Please accept the Privacy Policy and data-processing consent.');
+      return;
+    }
     setState(() {
       isLoading = true;
       errorMessage = "";
@@ -136,6 +142,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+              CheckboxListTile(
+                value: privacyConsent,
+                onChanged: (value) =>
+                    setState(() => privacyConsent = value ?? false),
+                title: const Text('I accept the Privacy Policy'),
+                subtitle: const Text(
+                    'My submitted comments may be stored for detection history and model feedback. I can export or delete my data later.'),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
               if (errorMessage.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),

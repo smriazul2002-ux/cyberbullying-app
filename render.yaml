@@ -9,3 +9,5 @@ services:
         value: hybrid-word-char-rules-v3.0
       - key: MODEL_THRESHOLD
         value: "0.40"
+      - key: YOUTUBE_API_KEY
+        sync: false

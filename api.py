@@ -24,6 +24,7 @@ VECTORIZER_PATH = os.getenv(
     "VECTORIZER_PATH", os.path.join(BASE_DIR, "tfidf_vectorizer.pkl")
 )
 TRANSFORMER_MODEL_NAME = os.getenv("TRANSFORMER_MODEL_NAME", "").strip()
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "").strip()
 
 app = FastAPI(
     title="Cyberbullying Detection API",
@@ -86,6 +87,7 @@ if TRANSFORMER_MODEL_NAME:
 
 class TextInput(BaseModel):
     text: str = Field(min_length=1, max_length=5000)
+    context: Optional[str] = Field(default=None, max_length=10000)
 
 
 class PredictionResponse(BaseModel):
@@ -97,11 +99,12 @@ class PredictionResponse(BaseModel):
     risk_level: str
     reasons: list[str]
     model_version: str
+    context_used: bool = False
+    sarcasm_detected: bool = False
 
 
 class YouTubeProtectionRequest(BaseModel):
     video_id: str
-    api_key: str
     max_comments: int = 30
     auto_remove: bool = False
     oauth_access_token: Optional[str] = None
@@ -143,6 +146,7 @@ def security_status():
         "max_text_length": 5000,
         "max_body_bytes": MAX_BODY_BYTES,
         "security_headers": True,
+        "youtube_key_configured": bool(YOUTUBE_API_KEY),
     }
 
 
@@ -201,7 +205,7 @@ def explain_text(text: str, bangla_hits: list[str], aggressive_emojis: list[str]
     return category, list(dict.fromkeys(matches))
 
 
-def analyze_text(text: str):
+def analyze_text(text: str, context: Optional[str] = None):
     cleaned = clean_text(text)
     vec = vectorizer.transform([cleaned])
     bullying_probability = float(model.predict_proba(vec)[0][1])
@@ -232,6 +236,23 @@ def analyze_text(text: str):
     hostile_emojis = re.findall(r"[😡🤬👿😈]", text)
     bangla_hits = check_bangla_toxic(text)
     category, reasons = explain_text(text, bangla_hits, aggressive_emojis, hostile_emojis)
+    context_text = (context or "").strip()
+    sarcasm_detected = bool(re.search(
+        r"(?:/s\b|\byeah right\b|\bas if\b|\bwhat a genius\b|\bবাহ,? খুব ভালো\b)",
+        text, re.IGNORECASE,
+    ))
+    if context_text:
+        context_cleaned = clean_text(context_text)
+        context_probability = float(
+            model.predict_proba(vectorizer.transform([context_cleaned]))[0][1]
+        )
+        if context_probability >= 0.75:
+            bullying_probability = max(bullying_probability, context_probability * 0.9)
+            pred = int(bullying_probability >= MODEL_THRESHOLD)
+            reasons.append("Conversation context contains a harmful pattern")
+    if sarcasm_detected and not reasons and bullying_probability < 0.70:
+        bullying_probability = min(bullying_probability, 0.35)
+        pred = 0
     if aggressive_emojis or len(hostile_emojis) >= 2 or bangla_hits:
         bullying_probability = max(bullying_probability, 0.82)
         pred = 1
@@ -251,14 +272,14 @@ def analyze_text(text: str):
         risk_level = "Low"
     if pred == 1 and not reasons:
         reasons = ["ML model detected a harmful language pattern"]
-    return pred, confidence, bangla_hits, category, risk_level, reasons
+    return pred, confidence, bangla_hits, category, risk_level, reasons, sarcasm_detected
 
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(input: TextInput):
     if not input.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
-    pred, confidence, bangla_hits, category, risk_level, reasons = analyze_text(input.text)
+    pred, confidence, bangla_hits, category, risk_level, reasons, sarcasm_detected = analyze_text(input.text, input.context)
 
     return PredictionResponse(
         text=input.text,
@@ -269,6 +290,8 @@ def predict(input: TextInput):
         risk_level=risk_level,
         reasons=reasons,
         model_version=MODEL_VERSION,
+        context_used=bool(input.context and input.context.strip()),
+        sarcasm_detected=sarcasm_detected,
     )
 
 
@@ -295,8 +318,11 @@ def protect_youtube(request: YouTubeProtectionRequest):
     Removal requires a short-lived OAuth access token belonging to the channel
     owner and granted the YouTube force-ssl scope. Tokens are never persisted.
     """
-    if not request.video_id.strip() or not request.api_key.strip():
-        raise HTTPException(status_code=400, detail="video_id and api_key are required")
+    api_key = YOUTUBE_API_KEY
+    if not request.video_id.strip():
+        raise HTTPException(status_code=400, detail="video_id is required")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="YouTube protection is not configured")
     if request.auto_remove and not request.oauth_access_token:
         raise HTTPException(status_code=400, detail="OAuth access token is required for removal")
 
@@ -305,7 +331,7 @@ def protect_youtube(request: YouTubeProtectionRequest):
         "videoId": request.video_id.strip(),
         "maxResults": max(1, min(request.max_comments, 100)),
         "textFormat": "plainText",
-        "key": request.api_key.strip(),
+        "key": api_key,
     })
     payload = youtube_json(f"https://www.googleapis.com/youtube/v3/commentThreads?{params}")
     results = []
@@ -317,7 +343,7 @@ def protect_youtube(request: YouTubeProtectionRequest):
         snippet = comment.get("snippet", {})
         comment_id = str(comment.get("id", ""))
         text = str(snippet.get("textDisplay", ""))
-        pred, confidence, _, category, risk_level, reasons = analyze_text(text)
+        pred, confidence, _, category, risk_level, reasons, _ = analyze_text(text)
         was_removed = False
         if pred == 1:
             flagged += 1

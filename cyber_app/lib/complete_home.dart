@@ -91,6 +91,8 @@ class _Db {
   }
 
   Future<void> save(Map<String, dynamic> data) async {
+    final settings = await privacy();
+    if (settings['consent'] == false) return;
     final id = _analysisKey(data);
     await call('analyses/${user.uid}/$id', method: 'PATCH', body: data);
     await audit('analysis.saved', id,
@@ -157,8 +159,15 @@ class _Db {
         });
   }
 
-  Future<void> report(Map<String, dynamic> data) =>
-      call('reports', method: 'POST', body: data);
+  Future<void> report(Map<String, dynamic> data) async {
+    final created = await call('reports', method: 'POST', body: data);
+    final id = created is Map ? '${created['name'] ?? ''}' : '';
+    if (id.isNotEmpty) {
+      await call('userReports/${user.uid}/$id', method: 'PUT', body: true);
+      await audit('report.created', id);
+    }
+  }
+
   Future<List<Map<String, dynamic>>> reports() async =>
       records(await call('reports'));
   Future<void> status(String id, String value) =>
@@ -183,6 +192,81 @@ class _Db {
           });
   Future<List<Map<String, dynamic>>> blocked() async =>
       records(await call('blocked/${user.uid}'));
+
+  Future<Map<String, dynamic>> privacy() async {
+    final raw = await call('privacy/${user.uid}');
+    return raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : {
+            'consent': true,
+            'retentionDays': 90,
+          };
+  }
+
+  Future<void> updatePrivacy(bool consent, int retentionDays) async {
+    await call('privacy/${user.uid}', method: 'PUT', body: {
+      'consent': consent,
+      'retentionDays': retentionDays,
+      'updatedAt': DateTime.now().toUtc().toIso8601String(),
+    });
+    await audit('privacy.updated', user.uid,
+        details: {'consent': consent, 'retentionDays': retentionDays});
+  }
+
+  Future<Map<String, dynamic>> exportMyData() async => {
+        'exportedAt': DateTime.now().toUtc().toIso8601String(),
+        'analyses': await call('analyses/${user.uid}'),
+        'evidence': await call('evidence/${user.uid}'),
+        'auditLogs': await call('auditLogs/${user.uid}'),
+        'notifications': await call('notifications/${user.uid}'),
+        'blocked': await call('blocked/${user.uid}'),
+        'privacy': await call('privacy/${user.uid}'),
+        'reports': await _myReports(),
+      };
+
+  Future<Map<String, dynamic>> _myReports() async {
+    final raw = await call('userReports/${user.uid}');
+    if (raw is! Map) return {};
+    final result = <String, dynamic>{};
+    for (final id in raw.keys) {
+      result['$id'] = await call('reports/$id');
+    }
+    return result;
+  }
+
+  Future<void> deleteMyData() async {
+    final reportIndex = await call('userReports/${user.uid}');
+    if (reportIndex is Map) {
+      for (final id in reportIndex.keys) {
+        await call('reports/$id', method: 'DELETE');
+      }
+    }
+    for (final path in [
+      'analyses',
+      'evidence',
+      'auditLogs',
+      'notifications',
+      'blocked',
+      'privacy',
+      'userReports'
+    ]) {
+      await call('$path/${user.uid}', method: 'DELETE');
+    }
+  }
+
+  Future<void> applyRetention() async {
+    final settings = await privacy();
+    final days = (settings['retentionDays'] as num?)?.toInt() ?? 90;
+    if (days <= 0) return;
+    final cutoff = DateTime.now().toUtc().subtract(Duration(days: days));
+    for (final row in await history()) {
+      final created = DateTime.tryParse('${row['createdAt'] ?? ''}')?.toUtc();
+      if (created != null && created.isBefore(cutoff)) {
+        await call('analyses/${user.uid}/${row['id']}', method: 'DELETE');
+        await call('evidence/${user.uid}/${row['id']}', method: 'DELETE');
+      }
+    }
+  }
 }
 
 class CompleteHomeScreen extends StatefulWidget {
@@ -193,10 +277,15 @@ class CompleteHomeScreen extends StatefulWidget {
 
 class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
   int selected = 0;
+  bool retentionStarted = false;
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser!;
     final db = _Db(user);
+    if (!retentionStarted) {
+      retentionStarted = true;
+      db.applyRetention();
+    }
     final isAdmin = _adminEmail.isNotEmpty &&
         user.email?.toLowerCase() == _adminEmail.toLowerCase();
     final pages = <Widget>[
@@ -211,6 +300,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
       _EvidenceVault(db),
       _AuditLog(db),
       _SecurityCenter(isAdmin),
+      _PrivacyCenter(db),
       _Protection(db),
       _Notices(db),
       if (isAdmin) _Admin(db),
@@ -228,6 +318,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
       'Evidence Vault',
       'Audit Log',
       'Security Center',
+      'Privacy Center',
       'YouTube Protection',
       'Notifications',
       if (isAdmin) 'Admin',
@@ -245,6 +336,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
       Icons.verified_user,
       Icons.receipt_long,
       Icons.security,
+      Icons.privacy_tip,
       Icons.shield,
       Icons.notifications,
       if (isAdmin) Icons.admin_panel_settings,
@@ -788,6 +880,7 @@ class _Detector extends StatefulWidget {
 
 class _DetectorState extends State<_Detector> {
   final text = TextEditingController();
+  final contextText = TextEditingController();
   final offender = TextEditingController();
   Map<String, dynamic>? result;
   bool busy = false;
@@ -795,6 +888,7 @@ class _DetectorState extends State<_Detector> {
   @override
   void dispose() {
     text.dispose();
+    contextText.dispose();
     offender.dispose();
     super.dispose();
   }
@@ -808,7 +902,11 @@ class _DetectorState extends State<_Detector> {
     try {
       final response = await http.post(Uri.parse('$_apiUrl/predict'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'text': text.text.trim()}));
+          body: jsonEncode({
+            'text': text.text.trim(),
+            if (contextText.text.trim().isNotEmpty)
+              'context': contextText.text.trim(),
+          }));
       if (response.statusCode != 200) {
         throw Exception('API ${response.statusCode}: ${response.body}');
       }
@@ -862,6 +960,17 @@ class _DetectorState extends State<_Detector> {
             maxLines: 7,
             decoration: const InputDecoration(
                 labelText: 'Message or comment', border: OutlineInputBorder())),
+        const SizedBox(height: 12),
+        TextField(
+            controller: contextText,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+                labelText:
+                    'Conversation context or previous messages (optional)',
+                helperText:
+                    'Helps reduce false positives and understand sarcasm.',
+                border: OutlineInputBorder())),
         const SizedBox(height: 12),
         FilledButton.icon(
             onPressed: busy ? null : analyze,
@@ -1674,16 +1783,13 @@ class _Protection extends StatefulWidget {
 }
 
 class _ProtectionState extends State<_Protection> {
-  final video = TextEditingController(),
-      apiKey = TextEditingController(),
-      accessToken = TextEditingController();
+  final video = TextEditingController(), accessToken = TextEditingController();
   bool remove = false, busy = false;
   String status = '';
   List<dynamic> comments = [];
   @override
   void dispose() {
     video.dispose();
-    apiKey.dispose();
     accessToken.dispose();
     super.dispose();
   }
@@ -1713,7 +1819,6 @@ class _ProtectionState extends State<_Protection> {
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'video_id': idFrom(video.text),
-            'api_key': apiKey.text.trim(),
             'max_comments': 30,
             'auto_remove': remove,
             'oauth_access_token': accessToken.text.trim().isEmpty
@@ -1758,12 +1863,12 @@ class _ProtectionState extends State<_Protection> {
             decoration: const InputDecoration(
                 labelText: 'YouTube URL or video ID',
                 border: OutlineInputBorder())),
-        TextField(
-            controller: apiKey,
-            obscureText: true,
-            decoration: const InputDecoration(
-                labelText: 'YouTube Data API key',
-                border: OutlineInputBorder())),
+        const Card(
+            child: ListTile(
+                leading: Icon(Icons.key_off, color: Colors.green),
+                title: Text('API key protected'),
+                subtitle: Text(
+                    'The YouTube key is stored only as a server secret and is never sent to the browser.'))),
         SwitchListTile(
             value: remove,
             onChanged: (v) => setState(() => remove = v),
@@ -1918,4 +2023,123 @@ class _SecurityCenter extends StatelessWidget {
           ),
         ],
       );
+}
+
+class _PrivacyCenter extends StatefulWidget {
+  const _PrivacyCenter(this.db);
+  final _Db db;
+  @override
+  State<_PrivacyCenter> createState() => _PrivacyCenterState();
+}
+
+class _PrivacyCenterState extends State<_PrivacyCenter> {
+  bool consent = true;
+  int retentionDays = 90;
+  bool loaded = false;
+  bool busy = false;
+
+  Future<void> load() async {
+    final value = await widget.db.privacy();
+    if (!mounted) return;
+    setState(() {
+      consent = value['consent'] != false;
+      retentionDays = (value['retentionDays'] as num?)?.toInt() ?? 90;
+      loaded = true;
+    });
+  }
+
+  Future<void> save() async {
+    setState(() => busy = true);
+    await widget.db.updatePrivacy(consent, retentionDays);
+    if (mounted) {
+      setState(() => busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Privacy settings saved.')));
+    }
+  }
+
+  Future<void> exportData() async {
+    final data = await widget.db.exportMyData();
+    await FileSaver.instance.saveFile(
+        name: 'cyberbullying_personal_data',
+        bytes: Uint8List.fromList(
+            utf8.encode(const JsonEncoder.withIndent('  ').convert(data))),
+        fileExtension: 'json',
+        mimeType: MimeType.json);
+  }
+
+  Future<void> deleteData() async {
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+              title: const Text('Delete all personal data?'),
+              content: const Text(
+                  'History, evidence, audit events, notifications and privacy settings will be permanently deleted. Export first if needed.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Delete')),
+              ],
+            ));
+    if (confirmed != true) return;
+    await widget.db.deleteMyData();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Your stored app data was deleted.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!loaded) {
+      load();
+      return const Center(child: CircularProgressIndicator());
+    }
+    return ListView(padding: const EdgeInsets.all(18), children: [
+      Text('Privacy & consent',
+          style: Theme.of(context).textTheme.headlineSmall),
+      const Text('You control how long your analysis data is retained.'),
+      const SizedBox(height: 12),
+      SwitchListTile(
+          value: consent,
+          onChanged: (value) => setState(() => consent = value),
+          title: const Text('Allow analysis history and feedback storage'),
+          subtitle: const Text(
+              'Turning this off records your preference; export or delete existing data below.')),
+      DropdownButtonFormField<int>(
+          initialValue: retentionDays,
+          decoration: const InputDecoration(
+              labelText: 'Automatic retention period',
+              border: OutlineInputBorder()),
+          items: const [
+            DropdownMenuItem(value: 30, child: Text('30 days')),
+            DropdownMenuItem(value: 90, child: Text('90 days')),
+            DropdownMenuItem(value: 365, child: Text('1 year')),
+          ],
+          onChanged: (value) => setState(() => retentionDays = value ?? 90)),
+      const SizedBox(height: 12),
+      FilledButton.icon(
+          onPressed: busy ? null : save,
+          icon: const Icon(Icons.save),
+          label: const Text('Save privacy settings')),
+      OutlinedButton.icon(
+          onPressed: exportData,
+          icon: const Icon(Icons.download),
+          label: const Text('Export my data (JSON)')),
+      OutlinedButton.icon(
+          onPressed: deleteData,
+          icon: const Icon(Icons.delete_forever, color: Colors.red),
+          label: const Text('Delete all my stored data',
+              style: TextStyle(color: Colors.red))),
+      const Card(
+          child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Text(
+            'Privacy Policy\n\nWe store only the account data, analyses and feedback needed to provide moderation features. API keys are kept on the server. Data is not sold. You may export or erase your stored app data at any time. Automated predictions can be wrong and should be reviewed by a person before action is taken.'),
+      )),
+    ]);
+  }
 }

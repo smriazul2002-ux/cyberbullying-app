@@ -14,25 +14,36 @@
       ".read": "auth != null && auth.uid === $uid",
       ".write": "auth != null && auth.uid === $uid"
     }},
+    "privacy": { "$uid": {
+      ".read": "auth != null && auth.uid === $uid",
+      ".write": "auth != null && auth.uid === $uid"
+    }},
+    "userReports": { "$uid": {
+      ".read": "auth != null && auth.uid === $uid",
+      ".write": "auth != null && auth.uid === $uid"
+    }},
     "roles": { "$uid": {
       ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
       ".write": false
     }},
     "evidence": { "$uid": {
       ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
+      ".write": "auth != null && auth.uid === $uid && !newData.exists()",
       "$evidenceId": {
-        ".write": "auth != null && auth.uid === $uid && !data.exists()",
+        ".write": "auth != null && auth.uid === $uid && (!data.exists() || !newData.exists())",
         ".validate": "newData.hasChildren(['analysisId','text','prediction','createdAt','evidenceHash','hashAlgorithm'])"
       }
     }},
     "auditLogs": { "$uid": {
       ".read": "auth != null && (auth.uid === $uid || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
+      ".write": "auth != null && auth.uid === $uid && !newData.exists()",
       "$eventId": { ".write": "auth != null && auth.uid === $uid && !data.exists()" }
     }},
     "reports": {
       ".read": "auth != null && (root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
       "$reportId": {
-        ".write": "auth != null && ((!data.exists() && newData.child('reporterUid').val() === auth.uid) || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')"
+        ".read": "auth != null && (data.child('reporterUid').val() === auth.uid || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')",
+        ".write": "auth != null && ((!data.exists() && newData.child('reporterUid').val() === auth.uid) || (!newData.exists() && data.child('reporterUid').val() === auth.uid) || root.child('roles').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'smriazul2002@gmail.com')"
       }
     }
   }
