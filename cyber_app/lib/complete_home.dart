@@ -366,30 +366,123 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
     ];
     if (selected >= pages.length) selected = 0;
     return Scaffold(
-      appBar: AppBar(title: Text(labels[selected]), actions: [
-        IconButton(
-            onPressed: FirebaseAuth.instance.signOut,
-            icon: const Icon(Icons.logout))
-      ]),
+      extendBodyBehindAppBar: false,
+      appBar: AppBar(
+          title: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.security, color: Color(0xFF52E5FF), size: 24),
+            const SizedBox(width: 9),
+            Flexible(child: Text(labels[selected]))
+          ]),
+          actions: [
+            IconButton(
+                onPressed: FirebaseAuth.instance.signOut,
+                icon: const Icon(Icons.logout))
+          ]),
       drawer: NavigationDrawer(
+        backgroundColor: const Color(0xFFF7F7FF),
         selectedIndex: selected,
         onDestinationSelected: (i) {
           setState(() => selected = i);
           Navigator.pop(context);
         },
         children: [
-          Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(user.email ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.bold))),
+          Container(
+              margin: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [Color(0xFF151E48), Color(0xFF5832B6)]),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x44583AC8), blurRadius: 16)
+                  ]),
+              child: Row(children: [
+                const CircleAvatar(
+                    backgroundColor: Color(0xFF32D5E8),
+                    child: Icon(Icons.shield, color: Colors.white)),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      const Text('CYBER SHIELD',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2)),
+                      Text(user.email ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12))
+                    ]))
+              ])),
           for (var i = 0; i < labels.length; i++)
             NavigationDrawerDestination(
                 icon: Icon(icons[i]), label: Text(labels[i])),
         ],
       ),
-      body: pages[selected],
+      body: Stack(children: [
+        const Positioned.fill(child: _CyberBackdrop()),
+        Positioned.fill(child: pages[selected]),
+      ]),
     );
   }
+}
+
+class _CyberBackdrop extends StatelessWidget {
+  const _CyberBackdrop();
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+      child: Container(
+          decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                Color(0xFFF5F4FF),
+                Color(0xFFEAF7FF),
+                Color(0xFFF5EFFF)
+              ])),
+          child: CustomPaint(painter: _CircuitPainter())));
+}
+
+class _CircuitPainter extends CustomPainter {
+  const _CircuitPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cyan = Paint()
+      ..color = const Color(0x1700AFC7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    final purple = Paint()
+      ..color = const Color(0x126C4DFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    const step = 72.0;
+    for (double y = 26; y < size.height; y += step) {
+      final shift = ((y / step).round().isEven) ? 0.0 : 34.0;
+      for (double x = -30 + shift; x < size.width; x += step * 1.7) {
+        final path = Path()
+          ..moveTo(x, y)
+          ..lineTo(x + 26, y)
+          ..lineTo(x + 38, y + 12)
+          ..lineTo(x + 62, y + 12);
+        canvas.drawPath(path, ((x + y).round().isEven) ? cyan : purple);
+        canvas.drawCircle(Offset(x + 64, y + 12), 3,
+            Paint()..color = const Color(0x2200AFC7));
+      }
+    }
+    canvas.drawCircle(Offset(size.width * .9, size.height * .16), 100,
+        Paint()..color = const Color(0x0C00BCD4));
+    canvas.drawCircle(Offset(size.width * .08, size.height * .78), 135,
+        Paint()..color = const Color(0x0F6C4DFF));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _CyberSafetyAcademy extends StatefulWidget {

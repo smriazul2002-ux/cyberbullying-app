@@ -22,7 +22,51 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Cyberbullying Shield',
-      theme: ThemeData(primarySwatch: Colors.deepPurple, useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF6C4DFF),
+          primary: const Color(0xFF6546D7),
+          secondary: const Color(0xFF00AFC7),
+          surface: const Color(0xFFF8F7FF),
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF0F4FF),
+        appBarTheme: const AppBarTheme(
+          foregroundColor: Colors.white,
+          backgroundColor: Color(0xFF101A3A),
+          centerTitle: true,
+          elevation: 0,
+          titleTextStyle: TextStyle(
+              color: Colors.white, fontSize: 21, fontWeight: FontWeight.w700),
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white.withValues(alpha: .92),
+          elevation: 3,
+          shadowColor: const Color(0x332B1D75),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0x226C4DFF)),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: .9),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Color(0x556C4DFF)),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF6546D7),
+            foregroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          ),
+        ),
+      ),
       home: const AuthGate(),
       debugShowCheckedModeBanner: false,
     );
@@ -107,87 +151,126 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.shield, size: 64, color: Colors.deepPurple),
-              const SizedBox(height: 12),
-              const Text(
-                "Cyberbullying Shield",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              CheckboxListTile(
-                value: privacyConsent,
-                onChanged: (value) =>
-                    setState(() => privacyConsent = value ?? false),
-                title: const Text('I accept the Privacy Policy'),
-                subtitle: const Text(
-                    'My submitted comments may be stored for detection history and model feedback. I can export or delete my data later.'),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-              if (errorMessage.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    errorMessage,
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : login,
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text("Login"),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: isLoading ? null : register,
-                      child: const Text("Register"),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        body: Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0D1635), Color(0xFF24155B), Color(0xFF075B70)],
         ),
       ),
-    );
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Container(
+              constraints: const BoxConstraints(maxWidth: 470),
+              padding: const EdgeInsets.all(26),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .94),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0x6649E7FF)),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x6600CFE8), blurRadius: 35),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 92,
+                    height: 92,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF704DFF), Color(0xFF00BCD4)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(color: Color(0x6600BCD4), blurRadius: 22),
+                      ],
+                    ),
+                    child: const Icon(Icons.security,
+                        size: 52, color: Colors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Cyberbullying Shield",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const Text('AI-powered digital safety platform',
+                      style: TextStyle(color: Color(0xFF536080))),
+                  const SizedBox(height: 32),
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      labelText: "Email",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Material(
+                    color: Colors.transparent,
+                    child: CheckboxListTile(
+                      value: privacyConsent,
+                      onChanged: (value) =>
+                          setState(() => privacyConsent = value ?? false),
+                      title: const Text('I accept the Privacy Policy'),
+                      subtitle: const Text(
+                          'My submitted comments may be stored for detection history and model feedback. I can export or delete my data later.'),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  ),
+                  if (errorMessage.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        errorMessage,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isLoading ? null : login,
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text("Login"),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: isLoading ? null : register,
+                          child: const Text("Register"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )),
+        ),
+      ),
+    ));
   }
 }
 
