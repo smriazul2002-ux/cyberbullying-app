@@ -379,7 +379,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
                 icon: const Icon(Icons.logout))
           ]),
       drawer: NavigationDrawer(
-        backgroundColor: const Color(0xFFF7F7FF),
+        backgroundColor: const Color(0xFF081329),
         selectedIndex: selected,
         onDestinationSelected: (i) {
           setState(() => selected = i);
@@ -437,15 +437,19 @@ class _CyberBackdrop extends StatelessWidget {
   Widget build(BuildContext context) => IgnorePointer(
       child: Container(
           decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                Color(0xFFF5F4FF),
-                Color(0xFFEAF7FF),
-                Color(0xFFF5EFFF)
-              ])),
-          child: CustomPaint(painter: _CircuitPainter())));
+              color: Color(0xFF040A16),
+              image: DecorationImage(
+                  image:
+                      AssetImage('assets/images/cyber_shield_background.png'),
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center)),
+          child: Container(
+              decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x99101B38), Color(0xE6050B18)])),
+              child: CustomPaint(painter: _CircuitPainter()))));
 }
 
 class _CircuitPainter extends CustomPainter {
@@ -454,11 +458,11 @@ class _CircuitPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final cyan = Paint()
-      ..color = const Color(0x1700AFC7)
+      ..color = const Color(0x3500D7F5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     final purple = Paint()
-      ..color = const Color(0x126C4DFF)
+      ..color = const Color(0x298A6CFF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
     const step = 72.0;
@@ -472,13 +476,13 @@ class _CircuitPainter extends CustomPainter {
           ..lineTo(x + 62, y + 12);
         canvas.drawPath(path, ((x + y).round().isEven) ? cyan : purple);
         canvas.drawCircle(Offset(x + 64, y + 12), 3,
-            Paint()..color = const Color(0x2200AFC7));
+            Paint()..color = const Color(0x5500D7F5));
       }
     }
     canvas.drawCircle(Offset(size.width * .9, size.height * .16), 100,
-        Paint()..color = const Color(0x0C00BCD4));
+        Paint()..color = const Color(0x2400BCD4));
     canvas.drawCircle(Offset(size.width * .08, size.height * .78), 135,
-        Paint()..color = const Color(0x0F6C4DFF));
+        Paint()..color = const Color(0x226C4DFF));
   }
 
   @override
@@ -886,7 +890,7 @@ class _CyberSafetyAcademyState extends State<_CyberSafetyAcademy> {
                     color.withValues(alpha: .06)
                   ])
                 : null,
-            color: unlocked ? null : Colors.grey.shade100,
+            color: unlocked ? null : const Color(0xCC111C36),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
                 color:
@@ -994,11 +998,7 @@ class _CyberSafetyAcademyState extends State<_CyberSafetyAcademy> {
   Widget build(BuildContext context) {
     if (loading) return const Center(child: CircularProgressIndicator());
     return Container(
-        decoration: const BoxDecoration(
-            gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFF2EDFF), Color(0xFFFFFAFF)])),
+        decoration: const BoxDecoration(color: Colors.transparent),
         child: ListView(padding: const EdgeInsets.all(16), children: [
           Row(children: [
             const Expanded(
@@ -1371,7 +1371,7 @@ class _TimelinePainter extends CustomPainter {
       final painter = TextPainter(
           text: TextSpan(
               text: labels[i],
-              style: const TextStyle(fontSize: 10, color: Colors.black54)),
+              style: const TextStyle(fontSize: 10, color: Colors.white70)),
           textDirection: TextDirection.ltr)
         ..layout();
       final x = left + graphWidth * i / (labels.length - 1);

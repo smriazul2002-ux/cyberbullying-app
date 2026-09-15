@@ -25,42 +25,43 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
+          brightness: Brightness.dark,
           seedColor: const Color(0xFF6C4DFF),
-          primary: const Color(0xFF6546D7),
-          secondary: const Color(0xFF00AFC7),
-          surface: const Color(0xFFF8F7FF),
+          primary: const Color(0xFF30DFFF),
+          secondary: const Color(0xFF8A6CFF),
+          surface: const Color(0xFF111C36),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF0F4FF),
+        scaffoldBackgroundColor: const Color(0xFF050B18),
         appBarTheme: const AppBarTheme(
           foregroundColor: Colors.white,
-          backgroundColor: Color(0xFF101A3A),
+          backgroundColor: Color(0xEE071225),
           centerTitle: true,
           elevation: 0,
           titleTextStyle: TextStyle(
               color: Colors.white, fontSize: 21, fontWeight: FontWeight.w700),
         ),
         cardTheme: CardThemeData(
-          color: Colors.white.withValues(alpha: .92),
-          elevation: 3,
-          shadowColor: const Color(0x332B1D75),
+          color: const Color(0xD9142343),
+          elevation: 6,
+          shadowColor: const Color(0x6600CAE8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Color(0x226C4DFF)),
+            side: const BorderSide(color: Color(0x6630DFFF)),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white.withValues(alpha: .9),
+          fillColor: const Color(0xCC101D38),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Color(0x556C4DFF)),
+            borderSide: const BorderSide(color: Color(0x8830DFFF)),
           ),
         ),
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF6546D7),
-            foregroundColor: Colors.white,
+            backgroundColor: const Color(0xFF00AFCB),
+            foregroundColor: const Color(0xFF00131A),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
@@ -153,12 +154,10 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
         body: Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0D1635), Color(0xFF24155B), Color(0xFF075B70)],
-        ),
-      ),
+          image: DecorationImage(
+              image: AssetImage('assets/images/cyber_shield_background.png'),
+              fit: BoxFit.cover,
+              alignment: Alignment.center)),
       child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -166,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
               constraints: const BoxConstraints(maxWidth: 470),
               padding: const EdgeInsets.all(26),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .94),
+                color: const Color(0xE60A1730),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(color: const Color(0x6649E7FF)),
                 boxShadow: const [
@@ -197,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const Text('AI-powered digital safety platform',
-                      style: TextStyle(color: Color(0xFF536080))),
+                      style: TextStyle(color: Color(0xFF9DDDEA))),
                   const SizedBox(height: 32),
                   TextField(
                     controller: emailController,
