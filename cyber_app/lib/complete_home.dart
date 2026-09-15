@@ -203,6 +203,23 @@ class _Db {
           };
   }
 
+  Future<Map<String, dynamic>> learningProgress() async {
+    final raw = await call('learning/${user.uid}');
+    return raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : <String, dynamic>{
+            'completedTips': <String, dynamic>{},
+            'quizBest': 0,
+          };
+  }
+
+  Future<void> updateLearningProgress(Map<String, dynamic> data) async {
+    await call('learning/${user.uid}', method: 'PATCH', body: {
+      ...data,
+      'updatedAt': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
   Future<void> updatePrivacy(bool consent, int retentionDays) async {
     await call('privacy/${user.uid}', method: 'PUT', body: {
       'consent': consent,
@@ -221,6 +238,7 @@ class _Db {
         'notifications': await call('notifications/${user.uid}'),
         'blocked': await call('blocked/${user.uid}'),
         'privacy': await call('privacy/${user.uid}'),
+        'learning': await call('learning/${user.uid}'),
         'reports': await _myReports(),
       };
 
@@ -248,6 +266,7 @@ class _Db {
       'notifications',
       'blocked',
       'privacy',
+      'learning',
       'userReports'
     ]) {
       await call('$path/${user.uid}', method: 'DELETE');
@@ -290,6 +309,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
         user.email?.toLowerCase() == _adminEmail.toLowerCase();
     final pages = <Widget>[
       _Dashboard(db),
+      _CyberSafetyAcademy(db),
       _Analytics(db),
       _ModelEvaluation(db),
       _Detector(db),
@@ -308,6 +328,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
     ];
     final labels = <String>[
       'Dashboard',
+      'Cyber Safety Academy',
       'Analytics',
       'Model Evaluation',
       'Detector',
@@ -326,6 +347,7 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
     ];
     final icons = <IconData>[
       Icons.dashboard,
+      Icons.school,
       Icons.analytics,
       Icons.model_training,
       Icons.search,
@@ -367,6 +389,463 @@ class _CompleteHomeScreenState extends State<CompleteHomeScreen> {
       ),
       body: pages[selected],
     );
+  }
+}
+
+class _CyberSafetyAcademy extends StatefulWidget {
+  const _CyberSafetyAcademy(this.db);
+  final _Db db;
+
+  @override
+  State<_CyberSafetyAcademy> createState() => _CyberSafetyAcademyState();
+}
+
+class _CyberSafetyAcademyState extends State<_CyberSafetyAcademy> {
+  bool loading = true;
+  bool bangla = true;
+  int quizIndex = 0;
+  int quizCorrect = 0;
+  int? selectedAnswer;
+  bool answerChecked = false;
+  int quizBest = 0;
+  Set<String> completedTips = {};
+
+  static const tips = <Map<String, dynamic>>[
+    {
+      'id': 'phishing',
+      'icon': Icons.phishing,
+      'color': Colors.orange,
+      'bn': 'ফিশিং চিনুন',
+      'en': 'Recognize phishing',
+      'bnBody':
+          'অচেনা link, জরুরি ভয় দেখানো message এবং password/OTP চাওয়া থেকে সতর্ক থাকুন।',
+      'enBody':
+          'Watch for unknown links, urgent threats, and requests for passwords or OTP codes.',
+    },
+    {
+      'id': 'password',
+      'icon': Icons.password,
+      'color': Colors.deepPurple,
+      'bn': 'শক্তিশালী password',
+      'en': 'Use strong passwords',
+      'bnBody':
+          'প্রতিটি account-এ আলাদা, দীর্ঘ password ব্যবহার করুন এবং password manager নিন।',
+      'enBody':
+          'Use a long, unique password for every account and consider a password manager.',
+    },
+    {
+      'id': 'mfa',
+      'icon': Icons.phonelink_lock,
+      'color': Colors.blue,
+      'bn': 'MFA চালু করুন',
+      'en': 'Turn on MFA',
+      'bnBody':
+          'Password চুরি হলেও দ্বিতীয় verification account-কে নিরাপদ রাখতে সাহায্য করে।',
+      'enBody':
+          'A second verification step helps protect your account even if a password is stolen.',
+    },
+    {
+      'id': 'updates',
+      'icon': Icons.system_update_alt,
+      'color': Colors.green,
+      'bn': 'Software update রাখুন',
+      'en': 'Keep software updated',
+      'bnBody':
+          'Phone ও app update security দুর্বলতা ঠিক করে; অযথা update বন্ধ রাখবেন না।',
+      'enBody':
+          'Phone and app updates fix security weaknesses; do not postpone them unnecessarily.',
+    },
+    {
+      'id': 'bullying',
+      'icon': Icons.health_and_safety,
+      'color': Colors.red,
+      'bn': 'Cyberbullying response',
+      'en': 'Respond to cyberbullying',
+      'bnBody':
+          'Reply না দিয়ে evidence রাখুন, block/report করুন এবং বিশ্বাসযোগ্য ব্যক্তিকে জানান।',
+      'enBody':
+          'Do not retaliate. Preserve evidence, block/report the account, and tell someone you trust.',
+    },
+  ];
+
+  static const questions = <Map<String, dynamic>>[
+    {
+      'bn': 'অচেনা message-এ OTP চাইলে কী করবেন?',
+      'en': 'What should you do if an unknown message asks for an OTP?',
+      'bnOptions': ['OTP পাঠাব', 'Ignore ও report করব', 'Link খুলব'],
+      'enOptions': ['Send the OTP', 'Ignore and report it', 'Open the link'],
+      'correct': 1,
+      'bnWhy': 'OTP কখনো অন্য কাউকে দেওয়া উচিত নয়।',
+      'enWhy': 'An OTP should never be shared with another person.',
+    },
+    {
+      'bn': 'সব account-এ একই password ব্যবহার করা কি নিরাপদ?',
+      'en': 'Is it safe to reuse one password for every account?',
+      'bnOptions': ['হ্যাঁ', 'শুধু social media-তে', 'না'],
+      'enOptions': ['Yes', 'Only on social media', 'No'],
+      'correct': 2,
+      'bnWhy': 'একটি breach হলে একই password-এর সব account ঝুঁকিতে পড়ে।',
+      'enWhy': 'One breach can expose every account that reuses the password.',
+    },
+    {
+      'bn': 'MFA-এর কাজ কী?',
+      'en': 'What does MFA do?',
+      'bnOptions': [
+        'দ্বিতীয় verification যোগ করে',
+        'Internet দ্রুত করে',
+        'Ads বন্ধ করে'
+      ],
+      'enOptions': [
+        'Adds a second verification step',
+        'Speeds up internet',
+        'Blocks ads'
+      ],
+      'correct': 0,
+      'bnWhy': 'MFA password-এর বাইরে আরেকটি পরিচয় যাচাই যোগ করে।',
+      'enWhy': 'MFA adds another identity check beyond the password.',
+    },
+    {
+      'bn': 'Cyberbullying message পেলে প্রথম ভালো পদক্ষেপ কোনটি?',
+      'en': 'What is a good first response to a cyberbullying message?',
+      'bnOptions': [
+        'পাল্টা হুমকি',
+        'Evidence রেখে block/report',
+        'সবাইকে forward'
+      ],
+      'enOptions': [
+        'Threaten back',
+        'Keep evidence and block/report',
+        'Forward it widely'
+      ],
+      'correct': 1,
+      'bnWhy': 'Evidence সংরক্ষণ ও report করা নিরাপদ প্রতিক্রিয়া।',
+      'enWhy': 'Preserving evidence and reporting is the safer response.',
+    },
+    {
+      'bn': 'Phone update কেন জরুরি?',
+      'en': 'Why are phone updates important?',
+      'bnOptions': [
+        'শুধু নতুন রং দেয়',
+        'Security দুর্বলতা ঠিক করে',
+        'Password মুছে দেয়'
+      ],
+      'enOptions': [
+        'Only changes colors',
+        'Fixes security weaknesses',
+        'Deletes passwords'
+      ],
+      'correct': 1,
+      'bnWhy': 'Update পরিচিত security flaw-এর patch দিতে পারে।',
+      'enWhy': 'Updates can patch known security flaws.',
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await widget.db.learningProgress();
+      final rawTips = data['completedTips'];
+      if (rawTips is Map) {
+        completedTips = rawTips.entries
+            .where((entry) => entry.value == true)
+            .map((entry) => '${entry.key}')
+            .toSet();
+      }
+      quizBest = (data['quizBest'] as num?)?.toInt() ?? 0;
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> _toggleTip(String id) async {
+    setState(() {
+      completedTips.contains(id)
+          ? completedTips.remove(id)
+          : completedTips.add(id);
+    });
+    await widget.db.updateLearningProgress({
+      'completedTips': {
+        for (final tip in tips) tip['id']: completedTips.contains(tip['id'])
+      }
+    });
+  }
+
+  int get safetyScore =>
+      math.min(100, completedTips.length * 10 + quizBest * 10);
+
+  Future<void> _nextQuestion() async {
+    final correct = questions[quizIndex]['correct'] as int;
+    if (!answerChecked) {
+      if (selectedAnswer == null) return;
+      setState(() {
+        answerChecked = true;
+        if (selectedAnswer == correct) quizCorrect++;
+      });
+      return;
+    }
+    if (quizIndex == questions.length - 1) {
+      if (quizCorrect > quizBest) {
+        quizBest = quizCorrect;
+        await widget.db.updateLearningProgress({'quizBest': quizBest});
+      }
+      if (!mounted) return;
+      await showDialog<void>(
+          context: context,
+          builder: (_) => AlertDialog(
+                icon: const Icon(Icons.emoji_events,
+                    color: Colors.amber, size: 48),
+                title: Text(bangla ? 'Quiz সম্পন্ন!' : 'Quiz complete!'),
+                content: Text(bangla
+                    ? 'আপনার score: $quizCorrect/${questions.length}'
+                    : 'Your score: $quizCorrect/${questions.length}'),
+                actions: [
+                  FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'))
+                ],
+              ));
+      if (!mounted) return;
+      setState(() {
+        quizIndex = 0;
+        quizCorrect = 0;
+        selectedAnswer = null;
+        answerChecked = false;
+      });
+    } else {
+      setState(() {
+        quizIndex++;
+        selectedAnswer = null;
+        answerChecked = false;
+      });
+    }
+  }
+
+  Widget _scoreCard() {
+    final score = safetyScore;
+    final color = score >= 80
+        ? Colors.green
+        : score >= 50
+            ? Colors.orange
+            : Colors.deepPurple;
+    return Container(
+        decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [
+              Colors.deepPurple.shade700,
+              Colors.blue.shade700,
+            ]),
+            borderRadius: BorderRadius.circular(24)),
+        padding: const EdgeInsets.all(20),
+        child: Row(children: [
+          SizedBox(
+              width: 92,
+              height: 92,
+              child: Stack(alignment: Alignment.center, children: [
+                CircularProgressIndicator(
+                    value: score / 100,
+                    strokeWidth: 9,
+                    color: Colors.white,
+                    backgroundColor: Colors.white24),
+                Text('$score',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold)),
+              ])),
+          const SizedBox(width: 18),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(
+                    bangla
+                        ? 'আপনার Cyber Safety Score'
+                        : 'Your Cyber Safety Score',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Text(
+                    bangla
+                        ? 'Tips সম্পন্ন করুন ও quiz দিন—score বাড়বে।'
+                        : 'Complete tips and quizzes to raise your score.',
+                    style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(value: score / 100, color: color),
+              ]))
+        ]));
+  }
+
+  Widget _tipCard(Map<String, dynamic> tip) {
+    final id = '${tip['id']}';
+    final done = completedTips.contains(id);
+    final color = tip['color'] as Color;
+    return Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+            onTap: () => _toggleTip(id),
+            child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.13),
+                          borderRadius: BorderRadius.circular(18)),
+                      child: Icon(tip['icon'] as IconData,
+                          color: color, size: 30)),
+                  const SizedBox(width: 14),
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        Text('${tip[bangla ? 'bn' : 'en']}',
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text('${tip[bangla ? 'bnBody' : 'enBody']}'),
+                      ])),
+                  const SizedBox(width: 8),
+                  Icon(done ? Icons.check_circle : Icons.circle_outlined,
+                      color: done ? Colors.green : Colors.grey),
+                ]))));
+  }
+
+  Widget _quizCard() {
+    final question = questions[quizIndex];
+    final options = (question[bangla ? 'bnOptions' : 'enOptions'] as List)
+        .map((value) => '$value')
+        .toList();
+    final correct = question['correct'] as int;
+    return Card(
+        child: Padding(
+            padding: const EdgeInsets.all(16),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.quiz, color: Colors.deepPurple),
+                const SizedBox(width: 8),
+                Text(
+                    '${bangla ? 'প্রশ্ন' : 'Question'} ${quizIndex + 1}/${questions.length}',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+              ]),
+              const SizedBox(height: 12),
+              Text('${question[bangla ? 'bn' : 'en']}',
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              RadioGroup<int>(
+                  groupValue: selectedAnswer,
+                  onChanged: (value) {
+                    if (!answerChecked) {
+                      setState(() => selectedAnswer = value);
+                    }
+                  },
+                  child: Column(
+                      children: List.generate(
+                          options.length,
+                          (i) => RadioListTile<int>(
+                              value: i,
+                              enabled: !answerChecked,
+                              title: Text(options[i]),
+                              secondary: answerChecked && i == correct
+                                  ? const Icon(Icons.check_circle,
+                                      color: Colors.green)
+                                  : answerChecked && i == selectedAnswer
+                                      ? const Icon(Icons.cancel,
+                                          color: Colors.red)
+                                      : null)))),
+              if (answerChecked)
+                Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: (selectedAnswer == correct
+                                ? Colors.green
+                                : Colors.orange)
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Text('${question[bangla ? 'bnWhy' : 'enWhy']}')),
+              const SizedBox(height: 12),
+              SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                      onPressed: selectedAnswer == null ? null : _nextQuestion,
+                      icon: Icon(
+                          answerChecked ? Icons.arrow_forward : Icons.check),
+                      label: Text(answerChecked
+                          ? (quizIndex == questions.length - 1
+                              ? (bangla ? 'ফলাফল দেখুন' : 'See result')
+                              : (bangla ? 'পরের প্রশ্ন' : 'Next question'))
+                          : (bangla ? 'উত্তর যাচাই' : 'Check answer')))),
+            ])));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) return const Center(child: CircularProgressIndicator());
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      Row(children: [
+        const Expanded(
+            child: Text('Cyber Safety Academy',
+                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold))),
+        SegmentedButton<bool>(segments: const [
+          ButtonSegment(value: true, label: Text('বাংলা')),
+          ButtonSegment(value: false, label: Text('EN')),
+        ], selected: {
+          bangla
+        }, onSelectionChanged: (value) => setState(() => bangla = value.first)),
+      ]),
+      const SizedBox(height: 14),
+      _scoreCard(),
+      const SizedBox(height: 18),
+      Text(bangla ? 'নিরাপত্তা শেখার পথ' : 'Your safety learning path',
+          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+      Text(bangla
+          ? '${completedTips.length}/${tips.length}টি tip সম্পন্ন'
+          : '${completedTips.length}/${tips.length} tips completed'),
+      const SizedBox(height: 8),
+      ...tips.map(_tipCard),
+      const SizedBox(height: 18),
+      Text(bangla ? 'Cyber Safety Quiz' : 'Cyber Safety Quiz',
+          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+      Text(bangla
+          ? 'Best score: $quizBest/${questions.length}'
+          : 'Best score: $quizBest/${questions.length}'),
+      const SizedBox(height: 8),
+      _quizCard(),
+      const SizedBox(height: 18),
+      Text(bangla ? 'আপনার Badges' : 'Your badges',
+          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        Chip(
+            avatar: Icon(Icons.shield,
+                color: completedTips.length >= 3 ? Colors.blue : Colors.grey),
+            label: Text(bangla ? 'Safety Starter' : 'Safety Starter')),
+        Chip(
+            avatar: Icon(Icons.phishing,
+                color: completedTips.contains('phishing')
+                    ? Colors.orange
+                    : Colors.grey),
+            label: Text(bangla ? 'Phishing Spotter' : 'Phishing Spotter')),
+        Chip(
+            avatar: Icon(Icons.verified_user,
+                color: quizBest >= 4 ? Colors.green : Colors.grey),
+            label: Text(bangla ? 'Privacy Guardian' : 'Privacy Guardian')),
+        Chip(
+            avatar: Icon(Icons.emoji_events,
+                color: safetyScore == 100 ? Colors.amber : Colors.grey),
+            label: Text(bangla ? 'Cyber Champion' : 'Cyber Champion')),
+      ]),
+      const SizedBox(height: 24),
+    ]);
   }
 }
 

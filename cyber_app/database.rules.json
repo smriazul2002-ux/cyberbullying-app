@@ -18,6 +18,10 @@
       ".read": "auth != null && auth.uid === $uid",
       ".write": "auth != null && auth.uid === $uid"
     }},
+    "learning": { "$uid": {
+      ".read": "auth != null && auth.uid === $uid",
+      ".write": "auth != null && auth.uid === $uid"
+    }},
     "userReports": { "$uid": {
       ".read": "auth != null && auth.uid === $uid",
       ".write": "auth != null && auth.uid === $uid"
