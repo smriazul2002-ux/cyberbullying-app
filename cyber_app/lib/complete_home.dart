@@ -635,49 +635,88 @@ class _CyberSafetyAcademyState extends State<_CyberSafetyAcademy> {
     return Container(
         decoration: BoxDecoration(
             gradient: LinearGradient(colors: [
-              Colors.deepPurple.shade700,
-              Colors.blue.shade700,
+              const Color(0xFF32127A),
+              const Color(0xFF6C3CE9),
+              const Color(0xFF1686D9),
             ]),
-            borderRadius: BorderRadius.circular(24)),
-        padding: const EdgeInsets.all(20),
-        child: Row(children: [
-          SizedBox(
-              width: 92,
-              height: 92,
-              child: Stack(alignment: Alignment.center, children: [
-                CircularProgressIndicator(
-                    value: score / 100,
-                    strokeWidth: 9,
-                    color: Colors.white,
-                    backgroundColor: Colors.white24),
-                Text('$score',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold)),
-              ])),
-          const SizedBox(width: 18),
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(
-                    bangla
-                        ? 'আপনার Cyber Safety Score'
-                        : 'Your Cyber Safety Score',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                Text(
-                    bangla
-                        ? 'Tips সম্পন্ন করুন ও quiz দিন—score বাড়বে।'
-                        : 'Complete tips and quizzes to raise your score.',
-                    style: const TextStyle(color: Colors.white70)),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(value: score / 100, color: color),
-              ]))
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x443F1D9B),
+                  blurRadius: 24,
+                  offset: Offset(0, 12))
+            ]),
+        padding: const EdgeInsets.all(22),
+        child: Stack(children: [
+          const Positioned(
+              right: -20,
+              top: -24,
+              child: Icon(Icons.shield_outlined,
+                  size: 150, color: Color(0x22FFFFFF))),
+          Row(children: [
+            SizedBox(
+                width: 104,
+                height: 104,
+                child: Stack(alignment: Alignment.center, children: [
+                  CircularProgressIndicator(
+                      value: score / 100,
+                      strokeWidth: 11,
+                      strokeCap: StrokeCap.round,
+                      color: const Color(0xFF65F4B0),
+                      backgroundColor: Colors.white24),
+                  Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text('$score',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900)),
+                    const Text('/ 100',
+                        style: TextStyle(color: Colors.white70, fontSize: 12))
+                  ]),
+                ])),
+            const SizedBox(width: 18),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(
+                      bangla
+                          ? 'আপনার Cyber Safety Score'
+                          : 'Your Cyber Safety Score',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text(
+                      bangla
+                          ? 'Tips সম্পন্ন করুন ও quiz দিন—score বাড়বে।'
+                          : 'Complete tips and quizzes to raise your score.',
+                      style: const TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 8),
+                  Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .16),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text(
+                          score >= 80
+                              ? (bangla
+                                  ? 'দারুণ সুরক্ষা'
+                                  : 'Excellent protection')
+                              : score >= 50
+                                  ? (bangla ? 'ভালো অগ্রগতি' : 'Good progress')
+                                  : (bangla
+                                      ? 'শেখা শুরু করুন'
+                                      : 'Start learning'),
+                          style: TextStyle(
+                              color: color == Colors.deepPurple
+                                  ? Colors.white
+                                  : const Color(0xFFB9FFD9),
+                              fontWeight: FontWeight.w700))),
+                ]))
+          ])
         ]));
   }
 
@@ -686,20 +725,38 @@ class _CyberSafetyAcademyState extends State<_CyberSafetyAcademy> {
     final done = completedTips.contains(id);
     final color = tip['color'] as Color;
     return Card(
+        elevation: done ? 4 : 1,
+        color: done ? color.withValues(alpha: .08) : null,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: BorderSide(
+                color: done ? color.withValues(alpha: .45) : Colors.black12)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
             onTap: () => _toggleTip(id),
             child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 child: Row(children: [
                   Container(
-                      width: 58,
-                      height: 58,
+                      width: 70,
+                      height: 70,
                       decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(18)),
+                          gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                color.withValues(alpha: .75),
+                                color,
+                              ]),
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: [
+                            BoxShadow(
+                                color: color.withValues(alpha: .28),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6))
+                          ]),
                       child: Icon(tip['icon'] as IconData,
-                          color: color, size: 30)),
+                          color: Colors.white, size: 34)),
                   const SizedBox(width: 14),
                   Expanded(
                       child: Column(
@@ -712,9 +769,62 @@ class _CyberSafetyAcademyState extends State<_CyberSafetyAcademy> {
                         Text('${tip[bangla ? 'bnBody' : 'enBody']}'),
                       ])),
                   const SizedBox(width: 8),
-                  Icon(done ? Icons.check_circle : Icons.circle_outlined,
-                      color: done ? Colors.green : Colors.grey),
+                  Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                          color: done ? Colors.green : Colors.grey.shade200,
+                          shape: BoxShape.circle),
+                      child: Icon(done ? Icons.check : Icons.arrow_forward,
+                          size: 18,
+                          color: done ? Colors.white : Colors.grey.shade600)),
                 ]))));
+  }
+
+  Widget _badgeCard(IconData icon, String title, String subtitle, Color color,
+      bool unlocked) {
+    return AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: 158,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+            gradient: unlocked
+                ? LinearGradient(colors: [
+                    color.withValues(alpha: .18),
+                    color.withValues(alpha: .06)
+                  ])
+                : null,
+            color: unlocked ? null : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+                color:
+                    unlocked ? color.withValues(alpha: .5) : Colors.black12)),
+        child: Column(children: [
+          Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                  color: unlocked ? color : Colors.grey.shade400,
+                  shape: BoxShape.circle,
+                  boxShadow: unlocked
+                      ? [
+                          BoxShadow(
+                              color: color.withValues(alpha: .35),
+                              blurRadius: 14)
+                        ]
+                      : null),
+              child: Icon(icon, color: Colors.white, size: 32)),
+          const SizedBox(height: 10),
+          Text(title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 3),
+          Text(unlocked ? subtitle : (bangla ? 'লক করা' : 'Locked'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: unlocked ? color : Colors.grey.shade600,
+                  fontWeight: FontWeight.w600))
+        ]));
   }
 
   Widget _quizCard() {
@@ -790,62 +900,97 @@ class _CyberSafetyAcademyState extends State<_CyberSafetyAcademy> {
   @override
   Widget build(BuildContext context) {
     if (loading) return const Center(child: CircularProgressIndicator());
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      Row(children: [
-        const Expanded(
-            child: Text('Cyber Safety Academy',
-                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold))),
-        SegmentedButton<bool>(segments: const [
-          ButtonSegment(value: true, label: Text('বাংলা')),
-          ButtonSegment(value: false, label: Text('EN')),
-        ], selected: {
-          bangla
-        }, onSelectionChanged: (value) => setState(() => bangla = value.first)),
-      ]),
-      const SizedBox(height: 14),
-      _scoreCard(),
-      const SizedBox(height: 18),
-      Text(bangla ? 'নিরাপত্তা শেখার পথ' : 'Your safety learning path',
-          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
-      Text(bangla
-          ? '${completedTips.length}/${tips.length}টি tip সম্পন্ন'
-          : '${completedTips.length}/${tips.length} tips completed'),
-      const SizedBox(height: 8),
-      ...tips.map(_tipCard),
-      const SizedBox(height: 18),
-      Text(bangla ? 'Cyber Safety Quiz' : 'Cyber Safety Quiz',
-          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
-      Text(bangla
-          ? 'Best score: $quizBest/${questions.length}'
-          : 'Best score: $quizBest/${questions.length}'),
-      const SizedBox(height: 8),
-      _quizCard(),
-      const SizedBox(height: 18),
-      Text(bangla ? 'আপনার Badges' : 'Your badges',
-          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 8),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        Chip(
-            avatar: Icon(Icons.shield,
-                color: completedTips.length >= 3 ? Colors.blue : Colors.grey),
-            label: Text(bangla ? 'Safety Starter' : 'Safety Starter')),
-        Chip(
-            avatar: Icon(Icons.phishing,
-                color: completedTips.contains('phishing')
-                    ? Colors.orange
-                    : Colors.grey),
-            label: Text(bangla ? 'Phishing Spotter' : 'Phishing Spotter')),
-        Chip(
-            avatar: Icon(Icons.verified_user,
-                color: quizBest >= 4 ? Colors.green : Colors.grey),
-            label: Text(bangla ? 'Privacy Guardian' : 'Privacy Guardian')),
-        Chip(
-            avatar: Icon(Icons.emoji_events,
-                color: safetyScore == 100 ? Colors.amber : Colors.grey),
-            label: Text(bangla ? 'Cyber Champion' : 'Cyber Champion')),
-      ]),
-      const SizedBox(height: 24),
-    ]);
+    return Container(
+        decoration: const BoxDecoration(
+            gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFF2EDFF), Color(0xFFFFFAFF)])),
+        child: ListView(padding: const EdgeInsets.all(16), children: [
+          Row(children: [
+            const Expanded(
+                child: Text('Cyber Safety Academy',
+                    style:
+                        TextStyle(fontSize: 25, fontWeight: FontWeight.bold))),
+            SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: true, label: Text('বাংলা')),
+                  ButtonSegment(value: false, label: Text('EN')),
+                ],
+                selected: {
+                  bangla
+                },
+                onSelectionChanged: (value) =>
+                    setState(() => bangla = value.first)),
+          ]),
+          const SizedBox(height: 14),
+          _scoreCard(),
+          const SizedBox(height: 18),
+          Row(children: [
+            Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFE4D9FF),
+                    borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.route, color: Color(0xFF6840C6))),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Text(
+                    bangla ? 'নিরাপত্তা শেখার পথ' : 'Your safety learning path',
+                    style: const TextStyle(
+                        fontSize: 21, fontWeight: FontWeight.bold)))
+          ]),
+          Text(bangla
+              ? '${completedTips.length}/${tips.length}টি tip সম্পন্ন'
+              : '${completedTips.length}/${tips.length} tips completed'),
+          const SizedBox(height: 8),
+          ...tips.map(_tipCard),
+          const SizedBox(height: 18),
+          Text(bangla ? 'Cyber Safety Quiz' : 'Cyber Safety Quiz',
+              style:
+                  const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+          Text(bangla
+              ? 'Best score: $quizBest/${questions.length}'
+              : 'Best score: $quizBest/${questions.length}'),
+          const SizedBox(height: 8),
+          _quizCard(),
+          const SizedBox(height: 18),
+          Row(children: [
+            const Icon(Icons.workspace_premium, color: Colors.amber, size: 30),
+            const SizedBox(width: 8),
+            Text(bangla ? 'আপনার অর্জন' : 'Your achievements',
+                style:
+                    const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 12),
+          Wrap(spacing: 10, runSpacing: 10, children: [
+            _badgeCard(
+                Icons.shield,
+                'Safety Starter',
+                bangla ? '৩টি lesson শেষ' : '3 lessons done',
+                Colors.blue,
+                completedTips.length >= 3),
+            _badgeCard(
+                Icons.phishing,
+                'Phishing Spotter',
+                bangla ? 'Phishing expert' : 'Phishing expert',
+                Colors.orange,
+                completedTips.contains('phishing')),
+            _badgeCard(
+                Icons.verified_user,
+                'Privacy Guardian',
+                bangla ? 'Quiz master' : 'Quiz master',
+                Colors.green,
+                quizBest >= 4),
+            _badgeCard(
+                Icons.emoji_events,
+                'Cyber Champion',
+                bangla ? 'পূর্ণ score' : 'Perfect score',
+                Colors.amber.shade700,
+                safetyScore == 100),
+          ]),
+          const SizedBox(height: 24),
+        ]));
   }
 }
 
