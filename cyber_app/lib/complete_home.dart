@@ -1092,18 +1092,36 @@ class _ModelEvaluation extends StatelessWidget {
     };
   }
 
-  Widget _metricCell(String label, Object? value, Color color) => Expanded(
-      child: Card(
-          child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(children: [
-                Text('$value',
+  Widget _metricCell(String label, Object? value, Color color) => Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text('$value',
                     style: TextStyle(
                         color: color,
                         fontSize: 22,
-                        fontWeight: FontWeight.bold)),
-                Text(label, textAlign: TextAlign.center),
-              ]))));
+                        fontWeight: FontWeight.bold))),
+            const SizedBox(height: 4),
+            Text(label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
+          ])));
+
+  Widget _metricGrid(List<Widget> cells) => LayoutBuilder(builder: (_, size) {
+        final columns = size.maxWidth >= 700 ? 4 : 2;
+        const gap = 8.0;
+        final width = (size.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: cells
+                .map((cell) => SizedBox(width: width, height: 100, child: cell))
+                .toList());
+      });
 
   Widget _modelCard(String title, Map<String, dynamic> data,
       {required bool active}) {
@@ -1188,7 +1206,7 @@ class _ModelEvaluation extends StatelessWidget {
           Text(
               'Active model: ${report['active_model_version']} • Threshold: ${report['active_threshold']}'),
           const SizedBox(height: 12),
-          Row(children: [
+          _metricGrid([
             _metricCell('Reviewed', reviewed.length, Colors.blue),
             _metricCell(
                 'Correct', reviewed.length - wrong.length, Colors.green),
@@ -1225,7 +1243,7 @@ class _ModelEvaluation extends StatelessWidget {
           const SizedBox(height: 12),
           const Text('Human feedback confusion matrix',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          Row(children: [
+          _metricGrid([
             _metricCell('True harmful', tp, Colors.green),
             _metricCell('True safe', tn, Colors.green),
             _metricCell('False alarm', fp, Colors.orange),
